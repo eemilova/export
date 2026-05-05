@@ -1,0 +1,2095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Multichain CSV Exporter</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f4; --bg3: #eeede9;
+    --text: #1a1a18; --text2: #6b6b67; --text3: #a0a09b;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --info-bg: #e6f1fb; --info-text: #185fa5;
+    --success-bg: #eaf3de; --success-text: #3b6d11;
+    --danger-text: #a32d2d; --danger-bg: #fcebeb;
+    --radius: 10px; --radius-sm: 7px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #242422; --bg3: #2c2c2a;
+      --text: #f0ede8; --text2: #a0a09b; --text3: #6b6b67;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --info-bg: #0c447c; --info-text: #b5d4f4;
+      --success-bg: #27500a; --success-text: #97c459;
+      --danger-text: #f09595; --danger-bg: #501313;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; color: var(--text); background: var(--bg3); min-height: 100vh; }
+  .shell { max-width: 860px; margin: 0 auto; padding: 2rem 1rem; }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; }
+  .tabs { display: flex; gap: 2px; background: var(--bg2); border-radius: var(--radius); padding: 4px; margin-bottom: 1.5rem; }
+  .tab { flex: 1; padding: 8px; text-align: center; cursor: pointer; font-size: 13px; color: var(--text2); border-radius: var(--radius-sm); transition: all 0.15s; }
+  .tab.active { background: var(--bg); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 12px; }
+  .section-title { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
+  .chain-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+  input[type=text], input[type=password], input[type=date], select, textarea {
+    padding: 0 10px; font-size: 13px;
+    border: 0.5px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg2); color: var(--text); outline: none; width: 100%;
+  }
+  input[type=text], input[type=password], input[type=date], select { height: 34px; }
+  textarea { padding: 8px 10px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { border-color: var(--border2); }
+  input[type=date] { cursor: pointer; }
+  .btn { height: 34px; padding: 0 14px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); background: transparent; color: var(--text); font-size: 13px; cursor: pointer; white-space: nowrap; transition: background 0.1s; }
+  .btn:hover { background: var(--bg2); }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn.primary:hover { opacity: 0.85; }
+  .btn.danger { color: var(--danger-text); border-color: var(--danger-text); }
+  .btn.danger:hover { background: var(--danger-bg); }
+  .btn.small { height: 28px; padding: 0 10px; font-size: 12px; }
+  .btn.preset { height: 28px; padding: 0 10px; font-size: 12px; border-radius: 999px; }
+  .btn.preset.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .label-tag { font-size: 12px; font-weight: 500; color: var(--info-text); background: var(--info-bg); padding: 2px 8px; border-radius: 999px; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .chain-tag { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+  .addr-mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status { font-size: 12px; color: var(--text2); white-space: nowrap; }
+  .status.ok { color: var(--success-text); }
+  .status.err { color: var(--danger-text); }
+  .progress { height: 3px; background: var(--bg2); border-radius: 2px; overflow: hidden; margin-top: 3px; margin-bottom: 2px; }
+  .progress-bar { height: 100%; background: var(--text); width: 0; transition: width 0.3s; }
+  .empty { font-size: 13px; color: var(--text3); padding: 1rem 0; text-align: center; }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .date-row { display: flex; align-items: center; gap: 8px; }
+  .date-sep { font-size: 12px; color: var(--text3); flex-shrink: 0; }
+  .range-summary { font-size: 12px; color: var(--text2); margin-top: 6px; min-height: 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .export-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+  .export-item:last-child { border-bottom: none; }
+  .log-item { display: flex; align-items: center; gap: 8px; padding: 6px 0 6px 8px; border-bottom: 0.5px solid var(--border); }
+  .log-item:last-child { border-bottom: none; }
+  .mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .mode-card { border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: var(--bg); }
+  .mode-card:hover { background: var(--bg2); }
+  .mode-card.selected { border: 2px solid var(--text); }
+  .mode-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .mode-desc { font-size: 11px; color: var(--text2); line-height: 1.5; }
+  .mode-example { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px; color: var(--text3); margin-top: 6px; line-height: 1.6; }
+  .log-addr-header { font-size: 12px; font-weight: 500; color: var(--text2); padding: 10px 0 4px; display: flex; align-items: center; gap: 8px; }
+  .log-addr-header + .log-addr-header { border-top: 0.5px solid var(--border); margin-top: 6px; }
+  /* chain picker grid */
+  .chain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 6px; margin-top: 8px; }
+  .chain-chip { display: flex; align-items: center; gap: 7px; padding: 6px 10px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; transition: background 0.1s; user-select: none; }
+  .chain-chip:hover { background: var(--bg2); }
+  .chain-chip.on { border-color: var(--border2); background: var(--bg2); font-weight: 500; }
+  .chain-chip input[type=checkbox] { width: 13px; height: 13px; flex-shrink: 0; accent-color: var(--text); }
+  .chain-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chain-id-badge { font-size: 10px; color: var(--text3); flex-shrink: 0; }
+  /* key panel */
+  .key-panel { display: flex; align-items: center; gap: 10px; }
+  .notice { font-size: 12px; color: var(--info-text); background: var(--info-bg); border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 12px; line-height: 1.5; }
+  /* snapshots */
+  .snap-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .snap-table th { text-align: left; font-weight: 500; color: var(--text3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 8px; border-bottom: 0.5px solid var(--border); }
+  .snap-table td { padding: 7px 8px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+  .snap-table tr:last-child td { border-bottom: none; }
+  .snap-table tr:hover td { background: var(--bg2); }
+  .token-bal { font-family: 'SF Mono','Fira Code',monospace; text-align: right; }
+  .snap-addr-head { font-size: 12px; font-weight: 500; color: var(--text2); padding: 10px 0 4px; display: flex; align-items: center; gap: 8px; border-top: 0.5px solid var(--border); margin-top: 6px; }
+  .snap-addr-head:first-child { border-top: none; margin-top: 0; }
+  /* interaction badge */
+  .ix-badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <h1>Multichain CSV Exporter</h1>
+  <p class="subtitle">Powered by Etherscan API V2 — one key, 60+ chains</p>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('keys')">API key</div>
+    <div class="tab" onclick="showTab('addresses')">Address book</div>
+    <div class="tab" onclick="showTab('counterparties')">Counterparties</div>
+    <div class="tab" onclick="showTab('export')">Export</div>
+    <div class="tab" onclick="showTab('snapshots')">Snapshots</div>
+  </div>
+
+  <!-- ── API KEY TAB ── -->
+  <div id="tab-keys">
+    <div class="notice">
+      Etherscan API V2 uses a <strong>single key</strong> for all supported chains. Get yours free at
+      <a href="https://etherscan.io/myapikey" target="_blank" style="color:var(--info-text)">etherscan.io/myapikey</a>.
+    </div>
+    <div class="card">
+      <div class="key-panel">
+        <input type="password" id="api-key" placeholder="Paste your Etherscan V2 API key…" style="flex:1">
+        <button class="btn small" onclick="toggleKeyVis()">show</button>
+        <button class="btn small primary" onclick="saveKey()">Save</button>
+        <span id="key-status" class="status" style="min-width:44px"></span>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:8px">Chains to export</div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--text2)">Select which chains to include in exports</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn small" onclick="selectAllChains(true)">All</button>
+          <button class="btn small" onclick="selectAllChains(false)">None</button>
+        </div>
+      </div>
+      <div class="chain-grid" id="chain-grid"></div>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-top:4px;">Your API key is saved in your browser's localStorage only.</p>
+  </div>
+
+  <!-- ── ADDRESS BOOK TAB ── -->
+  <div id="tab-addresses" style="display:none">
+    <div class="section-title">Saved addresses</div>
+    <div id="addr-list"></div>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;gap:2px;background:var(--bg2);border-radius:var(--radius-sm);padding:3px;margin-bottom:14px">
+        <div id="atab-single" onclick="showAddTab('single')" style="flex:1;text-align:center;padding:6px;font-size:12px;border-radius:5px;cursor:pointer;background:var(--bg);font-weight:500">Single</div>
+        <div id="atab-bulk"   onclick="showAddTab('bulk')"   style="flex:1;text-align:center;padding:6px;font-size:12px;border-radius:5px;cursor:pointer;color:var(--text2)">Bulk paste</div>
+        <div id="atab-csv"    onclick="showAddTab('csv')"    style="flex:1;text-align:center;padding:6px;font-size:12px;border-radius:5px;cursor:pointer;color:var(--text2)">CSV file</div>
+      </div>
+
+      <!-- single -->
+      <div id="apanel-single">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="new-addr" placeholder="0x… wallet address" style="flex:2">
+          <input type="text" id="new-label" placeholder="Label (e.g. My Vault)" style="flex:1">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="new-chain-scope" style="flex:1"></select>
+          <button class="btn primary" onclick="addAddress()" style="flex-shrink:0">Add</button>
+        </div>
+      </div>
+
+      <!-- bulk paste -->
+      <div id="apanel-bulk" style="display:none">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">
+          One address per line, or <code style="font-size:11px">address, label</code> pairs. Unlabelled addresses get auto-numbered.
+        </div>
+        <textarea id="bulk-text" placeholder="0xAbc123…&#10;0xDef456…, My Vault&#10;0x789…, Hot Wallet" style="height:110px;font-family:'SF Mono','Fira Code',monospace"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <select id="bulk-chain-scope" style="flex:1"></select>
+          <button class="btn primary" onclick="importBulk()" style="flex-shrink:0">Import</button>
+        </div>
+        <div id="bulk-status" style="font-size:12px;margin-top:6px;min-height:16px"></div>
+      </div>
+
+      <!-- csv file -->
+      <div id="apanel-csv" style="display:none">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+          Upload a CSV with <code style="font-size:11px">address</code> and <code style="font-size:11px">label</code> columns (case-insensitive). An optional <code style="font-size:11px">chain</code> column sets per-row scope.
+        </div>
+        <div id="csv-drop" onclick="document.getElementById('csv-file').click()"
+          style="border:1.5px dashed var(--border2);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;transition:background 0.15s"
+          ondragover="event.preventDefault();this.style.background='var(--bg2)'"
+          ondragleave="this.style.background=''"
+          ondrop="onCSVDrop(event)">
+          <div style="font-size:13px;color:var(--text2)">Drop a CSV here, or click to browse</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">address, label [, chain]</div>
+        </div>
+        <input type="file" id="csv-file" accept=".csv,.txt" style="display:none" onchange="onCSVFile(event)">
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <select id="csv-chain-scope" style="flex:1"></select>
+          <span style="font-size:11px;color:var(--text3)">fallback scope if no chain column</span>
+        </div>
+        <div id="csv-status" style="font-size:12px;margin-top:6px;min-height:16px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── COUNTERPARTIES TAB ── -->
+  <div id="tab-counterparties" style="display:none">
+    <div class="notice">
+      Map any address to a human-readable label. These are joined onto every export's <code style="font-size:11px">from</code> / <code style="font-size:11px">to</code> / <code style="font-size:11px">contractAddress</code> as <code style="font-size:11px">_from_label</code> / <code style="font-size:11px">_to_label</code> / <code style="font-size:11px">_contract_label</code> columns. Labels from your address book are also picked up automatically, so transfers between your own wallets get labeled on both sides.
+    </div>
+    <div class="section-title">Saved counterparties (<span id="cp-count">0</span>)</div>
+    <div id="cp-list"></div>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;gap:2px;background:var(--bg2);border-radius:var(--radius-sm);padding:3px;margin-bottom:14px">
+        <div id="cptab-single" onclick="showCpTab('single')" style="flex:1;text-align:center;padding:6px;font-size:12px;border-radius:5px;cursor:pointer;background:var(--bg);font-weight:500">Single</div>
+        <div id="cptab-bulk"   onclick="showCpTab('bulk')"   style="flex:1;text-align:center;padding:6px;font-size:12px;border-radius:5px;cursor:pointer;color:var(--text2)">Bulk paste</div>
+        <div id="cptab-csv"    onclick="showCpTab('csv')"    style="flex:1;text-align:center;padding:6px;font-size:12px;border-radius:5px;cursor:pointer;color:var(--text2)">CSV file</div>
+        <div id="cptab-seed"   onclick="showCpTab('seed')"   style="flex:1;text-align:center;padding:6px;font-size:12px;border-radius:5px;cursor:pointer;color:var(--text2)">Common contracts</div>
+      </div>
+
+      <!-- single -->
+      <div id="cppanel-single">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="cp-new-addr" placeholder="0x… counterparty address" style="flex:2">
+          <input type="text" id="cp-new-label" placeholder="Label (e.g. Coinbase deposit)" style="flex:1">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="cp-new-category" style="flex:1"></select>
+          <button class="btn primary" onclick="addCounterparty()" style="flex-shrink:0">Add</button>
+        </div>
+      </div>
+
+      <!-- bulk paste -->
+      <div id="cppanel-bulk" style="display:none">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">
+          One line per entry: <code style="font-size:11px">address, label</code> or <code style="font-size:11px">address, label, category</code>. Lines without a comma are ignored. Unrecognised categories fall back to "Other".
+        </div>
+        <textarea id="cp-bulk-text" placeholder="0xAbc123…, Coinbase deposit, Exchange (CEX)&#10;0xDef456…, Uniswap V3 Router, DEX&#10;0x789…, Friend's wallet, Wallet (Personal)" style="height:140px;font-family:'SF Mono','Fira Code',monospace"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <select id="cp-bulk-fallback-category" style="flex:1"></select>
+          <span style="font-size:11px;color:var(--text3)">fallback if line omits category</span>
+          <button class="btn primary" onclick="importCounterpartiesBulk()" style="flex-shrink:0">Import</button>
+        </div>
+        <div id="cp-bulk-status" style="font-size:12px;margin-top:6px;min-height:16px"></div>
+      </div>
+
+      <!-- csv file -->
+      <div id="cppanel-csv" style="display:none">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+          Upload a CSV with <code style="font-size:11px">address</code>, <code style="font-size:11px">label</code>, and optional <code style="font-size:11px">category</code> columns (case-insensitive headers).
+        </div>
+        <div id="cp-csv-drop" onclick="document.getElementById('cp-csv-file').click()"
+          style="border:1.5px dashed var(--border2);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;transition:background 0.15s"
+          ondragover="event.preventDefault();this.style.background='var(--bg2)'"
+          ondragleave="this.style.background=''"
+          ondrop="onCpCSVDrop(event)">
+          <div style="font-size:13px;color:var(--text2)">Drop a CSV here, or click to browse</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">address, label [, category]</div>
+        </div>
+        <input type="file" id="cp-csv-file" accept=".csv,.txt" style="display:none" onchange="onCpCSVFile(event)">
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <select id="cp-csv-fallback-category" style="flex:1"></select>
+          <span style="font-size:11px;color:var(--text3)">fallback if no category column</span>
+        </div>
+        <div id="cp-csv-status" style="font-size:12px;margin-top:6px;min-height:16px"></div>
+      </div>
+
+      <!-- common contracts (seeded list) -->
+      <div id="cppanel-seed" style="display:none">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+          Curated list of widely-used contract addresses. Most DEX aggregators and Aave V3 deploy at the same address across chains, so a single entry labels rows everywhere those protocols appear. Token addresses below are Ethereum mainnet — add your own for L2s. Already-saved entries are pre-checked and will be left untouched.
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+          <button class="btn small" onclick="seedSelectAll(true)">Select all</button>
+          <button class="btn small" onclick="seedSelectAll(false)">Select none</button>
+          <button class="btn small" onclick="toggleCustomSeedForm()" id="cs-toggle-btn">+ Add custom</button>
+          <div style="flex:1"></div>
+          <button class="btn primary small" onclick="addSelectedSeeds()">Add selected</button>
+        </div>
+        <div id="cp-custom-seed-form" style="display:none;margin-bottom:10px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg2)">
+          <div class="field-label" style="margin-bottom:6px">New custom contract</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input type="text" id="cs-addr" placeholder="0x… address" style="flex:2">
+            <input type="text" id="cs-label" placeholder="Label" style="flex:1">
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <select id="cs-category" style="flex:1"></select>
+            <input type="text" id="cs-notes" placeholder="Notes (optional, e.g. Arbitrum)" style="flex:2">
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div id="cs-form-status" style="font-size:12px;flex:1;min-height:16px"></div>
+            <button class="btn small" onclick="toggleCustomSeedForm()">Cancel</button>
+            <button class="btn small primary" onclick="saveCustomSeed()">Save</button>
+          </div>
+        </div>
+        <div id="cp-seed-list" style="max-height:380px;overflow-y:auto;border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px"></div>
+        <div id="cp-seed-status" style="font-size:12px;margin-top:8px;min-height:16px"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn small" onclick="exportCounterpartiesCSV()">Export to CSV</button>
+      <button class="btn small danger" onclick="clearCounterparties()">Clear all</button>
+    </div>
+  </div>
+
+  <!-- ── EXPORT TAB ── -->
+  <div id="tab-export" style="display:none">
+    <div class="section-title">Settings</div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="grid2" style="margin-bottom:14px">
+        <div>
+          <div class="field-label">Data type</div>
+          <select id="exp-type">
+            <option value="tokentx">ERC-20 token transfers</option>
+            <option value="txlist">Normal transactions</option>
+            <option value="txlistinternal">Internal transactions</option>
+            <option value="tokennfttx">ERC-721 NFT transfers</option>
+            <option value="token1155tx">ERC-1155 transfers</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label">Max records per address / chain</div>
+          <select id="exp-limit">
+            <option value="1000">1,000</option>
+            <option value="5000">5,000</option>
+            <option value="10000">10,000</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-label">Date range <span style="color:var(--text3);font-weight:normal">(UTC)</span></div>
+      <div class="presets" id="presets-row"></div>
+      <div class="date-row">
+        <input type="date" id="date-from" onchange="onDateChange()" style="flex:1">
+        <span class="date-sep">to</span>
+        <input type="date" id="date-to" onchange="onDateChange()" style="flex:1">
+      </div>
+      <div class="range-summary" id="range-summary"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="field-label" style="margin-bottom:10px">Download mode</div>
+      <div class="mode-grid">
+        <div class="mode-card selected" data-mode="separate" onclick="selectMode('separate')">
+          <div class="mode-title">Separate files</div>
+          <div class="mode-desc">One CSV per address per chain</div>
+          <div class="mode-example">MyVault_eth.csv<br>MyVault_base.csv<br>HotWallet_eth.csv</div>
+        </div>
+        <div class="mode-card" data-mode="per-address" onclick="selectMode('per-address')">
+          <div class="mode-title">Per address</div>
+          <div class="mode-desc">All chains merged per address, with a <code style="font-size:10px">_chain</code> column</div>
+          <div class="mode-example">MyVault_all_chains.csv<br>HotWallet_all_chains.csv</div>
+        </div>
+        <div class="mode-card" data-mode="combined" onclick="selectMode('combined')">
+          <div class="mode-title">Combined</div>
+          <div class="mode-desc">Everything in one file with <code style="font-size:10px">_label</code> + <code style="font-size:10px">_chain</code></div>
+          <div class="mode-example">multichain_export.csv</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <div class="field-label" style="margin-bottom:8px">Addresses to export</div>
+      <div id="export-addr-list"></div>
+    </div>
+
+    <div id="export-cp-status" style="font-size:11px;color:var(--text3);margin-bottom:10px;text-align:right"></div>
+
+    <button class="btn primary" id="run-btn" onclick="runExport()">Run export</button>
+    <div id="export-log" style="margin-top:1rem"></div>
+  </div>
+
+  <!-- ── SNAPSHOTS TAB ── -->
+  <div id="tab-snapshots" style="display:none">
+    <div class="section-title">Token balance snapshots</div>
+
+    <div class="card" style="margin-bottom:12px">
+      <!-- Date mode -->
+      <div class="field-label" style="margin-bottom:8px">Snapshot date <span style="color:var(--text3);font-weight:normal">(UTC, end of day)</span></div>
+      <div style="display:flex;gap:2px;background:var(--bg2);border-radius:var(--radius-sm);padding:3px;margin-bottom:10px;max-width:340px">
+        <div id="sdtab-now"  onclick="showSnapDateTab('now')"  style="flex:1;text-align:center;padding:6px;font-size:12px;border-radius:5px;cursor:pointer;background:var(--bg);font-weight:500">Current</div>
+        <div id="sdtab-hist" onclick="showSnapDateTab('hist')" style="flex:1;text-align:center;padding:6px;font-size:12px;border-radius:5px;cursor:pointer;color:var(--text2)">Historical date</div>
+      </div>
+
+      <div id="sdpanel-now" style="margin-bottom:10px">
+        <div style="font-size:12px;color:var(--text2)">Fetches live balances as of the latest block. Token list via <code style="font-size:11px">addresstokenbalance</code>.</div>
+      </div>
+
+      <div id="sdpanel-hist" style="display:none;margin-bottom:10px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input type="date" id="snap-date" style="max-width:180px;flex-shrink:0" onchange="onSnapDateChange()">
+          <div id="snap-block-display" style="font-size:12px;color:var(--text2);font-family:'SF Mono','Fira Code',monospace"></div>
+        </div>
+        <!-- Quick presets -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="btn preset" onclick="applySnapPreset('year-end')">Last year-end</button>
+          <button class="btn preset" onclick="applySnapPreset('q-end')">Last quarter-end</button>
+          <button class="btn preset" onclick="applySnapPreset('month-end')">Last month-end</button>
+        </div>
+        <div class="notice" style="margin-bottom:0">
+          <strong>Native balance</strong> at a historical block requires an Etherscan <strong>PRO</strong> plan (<code style="font-size:11px">balancehistory</code>). On a free key it will fall back to current balance and be marked <em>approx</em>.<br>
+          <strong>Token balances</strong> are reconstructed from transfer history up to the chosen block — available on all plans.
+        </div>
+      </div>
+
+      <!-- Addresses -->
+      <div class="field-label" style="margin-bottom:6px">Addresses</div>
+      <div id="snap-addr-list"></div>
+
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="snap-hide-zero" checked style="accent-color:var(--text)"> Hide zero balances
+        </label>
+        <div style="flex:1"></div>
+        <button class="btn primary" id="snap-btn" onclick="runSnapshot()">Take snapshot</button>
+        <button class="btn small" id="snap-dl-btn" onclick="downloadSnapshot()" style="display:none">Download CSV</button>
+      </div>
+    </div>
+
+    <div id="snap-log"></div>
+    <div id="snap-results"></div>
+  </div>
+</div>
+
+<script>
+// ── Etherscan V2: single endpoint, chainid param ──────────────────────────────
+const API_BASE = 'https://api.etherscan.io/v2/api';
+
+// Full list from https://docs.etherscan.io/supported-chains
+// { id, name, chainId, color, short }
+const CHAINS = [
+  { id:'eth',       name:'Ethereum',          chainId:1,      color:'#627eea', short:'ETH'    },
+  { id:'op',        name:'Optimism',           chainId:10,     color:'#ff0420', short:'OP'     },
+  { id:'flare',     name:'Flare',              chainId:14,     color:'#e8312e', short:'FLR'    },
+  { id:'rsk',       name:'Rootstock',          chainId:30,     color:'#ff9900', short:'RSK'    },
+  { id:'telos',     name:'Telos',              chainId:40,     color:'#571aff', short:'TLOS'   },
+  { id:'bsc',       name:'BNB Smart Chain',    chainId:56,     color:'#f0b90b', short:'BSC'    },
+  { id:'gnosis',    name:'Gnosis',             chainId:100,    color:'#04795b', short:'GNO'    },
+  { id:'fuse',      name:'Fuse',               chainId:122,    color:'#b5ec57', short:'FUSE'   },
+  { id:'heco',      name:'Huobi ECO',          chainId:128,    color:'#01943f', short:'HECO'   },
+  { id:'poly',      name:'Polygon',            chainId:137,    color:'#8247e5', short:'MATIC'  },
+  { id:'manta',     name:'Manta Pacific',      chainId:169,    color:'#000000', short:'MANTA'  },
+  { id:'ftm',       name:'Fantom',             chainId:250,    color:'#1969ff', short:'FTM'    },
+  { id:'boba',      name:'Boba Network',       chainId:288,    color:'#cbff00', short:'BOBA'   },
+  { id:'kcc',       name:'KCC',                chainId:321,    color:'#23af91', short:'KCC'    },
+  { id:'zksync',    name:'zkSync Era',         chainId:324,    color:'#4e529a', short:'ZKS'    },
+  { id:'celo',      name:'Celo',               chainId:42220,  color:'#35d07f', short:'CELO'   },
+  { id:'avax',      name:'Avalanche C-Chain',  chainId:43114,  color:'#e84142', short:'AVAX'   },
+  { id:'linea',     name:'Linea',              chainId:59144,  color:'#61dfff', short:'LINEA'  },
+  { id:'base',      name:'Base',               chainId:8453,   color:'#0052ff', short:'BASE'   },
+  { id:'arb',       name:'Arbitrum One',       chainId:42161,  color:'#28a0f0', short:'ARB'    },
+  { id:'arbno',     name:'Arbitrum Nova',      chainId:42170,  color:'#e57310', short:'ARBN'   },
+  { id:'cro',       name:'Cronos',             chainId:25,     color:'#002d74', short:'CRO'    },
+  { id:'moonbeam',  name:'Moonbeam',           chainId:1284,   color:'#53cbc8', short:'GLMR'   },
+  { id:'moonriver', name:'Moonriver',          chainId:1285,   color:'#f2a007', short:'MOVR'   },
+  { id:'metis',     name:'Metis',              chainId:1088,   color:'#00dacc', short:'METIS'  },
+  { id:'blast',     name:'Blast',              chainId:81457,  color:'#fcfc03', short:'BLAST'  },
+  { id:'scroll',    name:'Scroll',             chainId:534352, color:'#eeb878', short:'SCROLL' },
+  { id:'mantle',    name:'Mantle',             chainId:5000,   color:'#000000', short:'MNT'    },
+  { id:'hyperevm',  name:'HyperEVM',           chainId:999,    color:'#00a3ff', short:'HYPE'   },
+  { id:'taiko',     name:'Taiko',              chainId:167000, color:'#e91898', short:'TAIKO'  },
+  { id:'wc',        name:'World Chain',        chainId:480,    color:'#000000', short:'WLD'    },
+  { id:'unichain',  name:'Unichain',           chainId:1301,   color:'#ff007a', short:'UNI'    },
+  { id:'ink',       name:'Ink',                chainId:57073,  color:'#6200ff', short:'INK'    },
+  { id:'soneium',   name:'Soneium',            chainId:1868,   color:'#000000', short:'SONE'   },
+];
+
+// All preset boundaries are computed in UTC so that the date range matches
+// what Etherscan's explorer shows (block timestamps are UTC).
+// ── Counterparty categories ──────────────────────────────────────────────────
+// Fixed enum so users don't fragment with typos like "cex"/"CEX"/"Cex".
+const CATEGORIES = [
+  'Exchange (CEX)',
+  'DEX',
+  'Lending',
+  'Staking',
+  'Bridge',
+  'Token Contract',
+  'Wallet (Personal)',
+  'Service Provider',
+  'Other',
+];
+
+// ── Pre-seeded common contracts ──────────────────────────────────────────────
+// Curated list of widely-used contract addresses. Most DEX aggregators and
+// Aave V3 deploy at the same address across major EVM chains, so a single
+// entry labels rows wherever those protocols appear. Token addresses are
+// chain-specific; the entries below are Ethereum mainnet — users on other
+// chains can add their local token addresses separately.
+const SEED_CONTRACTS = [
+  // DEX routers / aggregators
+  { address:'0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', label:'Uniswap V2 Router',          category:'DEX', notes:'Ethereum mainnet' },
+  { address:'0xE592427A0AEce92De3Edee1F18E0157C05861564', label:'Uniswap V3 SwapRouter',       category:'DEX', notes:'Multichain (canonical)' },
+  { address:'0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45', label:'Uniswap V3 SwapRouter02',     category:'DEX', notes:'Multichain (canonical)' },
+  { address:'0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B', label:'Uniswap Universal Router',    category:'DEX', notes:'Ethereum mainnet' },
+  { address:'0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F', label:'SushiSwap Router',            category:'DEX', notes:'Ethereum mainnet' },
+  { address:'0x1111111254EEB25477B68fb85Ed929f73A960582', label:'1inch V5 Aggregation Router', category:'DEX', notes:'Multichain (same address)' },
+  { address:'0x111111125421cA6dc452d289314280a0f8842A65', label:'1inch V6 Aggregation Router', category:'DEX', notes:'Multichain (same address)' },
+  { address:'0xDef1C0ded9bec7F1a1670819833240f027b25EfF', label:'0x Exchange Proxy',           category:'DEX', notes:'Multichain (same address)' },
+  { address:'0x9008D19f58AAbD9eD0D60971565AA8510560ab41', label:'CoW Protocol Settlement',     category:'DEX', notes:'Multichain (same address)' },
+
+  // Lending
+  { address:'0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2', label:'Aave V3 Pool',                category:'Lending', notes:'Multichain (canonical)' },
+  { address:'0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9', label:'Aave V2 Lending Pool',        category:'Lending', notes:'Ethereum mainnet' },
+  { address:'0xc3d688B66703497DAA19211EEdff47f25384cdc3', label:'Compound III cUSDCv3',        category:'Lending', notes:'Ethereum mainnet' },
+
+  // Staking
+  { address:'0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84', label:'Lido stETH',                  category:'Staking', notes:'Ethereum mainnet' },
+  { address:'0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0', label:'Lido wstETH',                 category:'Staking', notes:'Ethereum mainnet' },
+  { address:'0xae78736Cd615f374D3085123A210448E74Fc6393', label:'Rocket Pool rETH',            category:'Staking', notes:'Ethereum mainnet' },
+  { address:'0x00000000219ab540356cBB839Cbe05303d7705Fa', label:'ETH 2.0 Deposit Contract',    category:'Staking', notes:'Ethereum mainnet' },
+
+  // Bridges
+  { address:'0x8731d54E9D02c286767d56ac03e8037C07e01e98', label:'Stargate Router',             category:'Bridge',  notes:'Ethereum mainnet' },
+  { address:'0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675', label:'LayerZero Endpoint V1',       category:'Bridge',  notes:'Ethereum mainnet' },
+  { address:'0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5', label:'Across SpokePool',            category:'Bridge',  notes:'Ethereum mainnet' },
+
+  // Token contracts (Ethereum mainnet)
+  { address:'0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', label:'WETH',                        category:'Token Contract', notes:'Ethereum mainnet' },
+  { address:'0xA0b86991c6218b36c1d19d4A2e9Eb0cE3606eB48', label:'USDC',                        category:'Token Contract', notes:'Ethereum mainnet' },
+  { address:'0xdAC17F958D2ee523a2206206994597C13D831ec7', label:'USDT',                        category:'Token Contract', notes:'Ethereum mainnet' },
+  { address:'0x6B175474E89094C44Da98b954EedeAC495271d0F', label:'DAI',                         category:'Token Contract', notes:'Ethereum mainnet' },
+  { address:'0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', label:'WBTC',                        category:'Token Contract', notes:'Ethereum mainnet' },
+  { address:'0x514910771AF9Ca656af840dff83E8264EcF986CA', label:'LINK',                        category:'Token Contract', notes:'Ethereum mainnet' },
+  { address:'0x1f9840a85d5aF5bf1D1762F925BdADdC4201F984', label:'UNI',                         category:'Token Contract', notes:'Ethereum mainnet' },
+];
+
+const PRESETS = [
+  { label:'All time',     id:'all',   fn:()=>({from:null,to:null}) },
+  { label:'This year',    id:'ytd',   fn:()=>{const n=new Date();const y=n.getUTCFullYear();return{from:new Date(Date.UTC(y,0,1)),to:n};} },
+  { label:'Last year',    id:'lasty', fn:()=>{const y=new Date().getUTCFullYear()-1;return{from:new Date(Date.UTC(y,0,1)),to:new Date(Date.UTC(y,11,31))};} },
+  { label:'This quarter', id:'thisq', fn:()=>{const n=new Date(),y=n.getUTCFullYear(),q=Math.floor(n.getUTCMonth()/3);return{from:new Date(Date.UTC(y,q*3,1)),to:n};} },
+  { label:'Last quarter', id:'lastq', fn:()=>{const n=new Date();let q=Math.floor(n.getUTCMonth()/3)-1,y=n.getUTCFullYear();if(q<0){q=3;y--;}return{from:new Date(Date.UTC(y,q*3,1)),to:new Date(Date.UTC(y,q*3+3,0))};} },
+  { label:'Last 30 days', id:'l30',   fn:()=>{const n=new Date(),f=new Date(n);f.setUTCDate(f.getUTCDate()-30);return{from:f,to:n};} },
+  { label:'Last 90 days', id:'l90',   fn:()=>{const n=new Date(),f=new Date(n);f.setUTCDate(f.getUTCDate()-90);return{from:f,to:n};} },
+];
+
+let activePreset = 'all';
+let downloadMode = 'separate';
+let results = [];
+
+// ── Storage ───────────────────────────────────────────────────────────────────
+function load(){ try{return JSON.parse(localStorage.getItem('mcex2')||'{}');}catch{return{};} }
+function save(d){ localStorage.setItem('mcex2', JSON.stringify(d)); }
+function getData(){
+  const d=load();
+  if(!d.apiKey) d.apiKey='';
+  if(!d.addresses) d.addresses=[];
+  if(!d.counterparties) d.counterparties=[];
+  if(!d.customSeeds) d.customSeeds=[];
+  // default: all chains enabled
+  if(!d.enabledChains) d.enabledChains=CHAINS.map(c=>c.id);
+  return d;
+}
+
+// ── API key tab ───────────────────────────────────────────────────────────────
+function renderKeyTab(){
+  const d=getData();
+  document.getElementById('api-key').value=d.apiKey||'';
+  renderChainGrid();
+}
+
+function toggleKeyVis(){
+  const i=document.getElementById('api-key');
+  i.type=i.type==='password'?'text':'password';
+}
+
+function saveKey(){
+  const d=getData();
+  d.apiKey=document.getElementById('api-key').value.trim();
+  save(d);
+  const s=document.getElementById('key-status');
+  s.textContent=d.apiKey?'saved ✓':'cleared';
+  s.className=d.apiKey?'status ok':'status';
+  setTimeout(()=>{s.textContent='';},2000);
+}
+
+function renderChainGrid(){
+  const d=getData();
+  const enabled=new Set(d.enabledChains||[]);
+  document.getElementById('chain-grid').innerHTML=CHAINS.map(c=>`
+    <label class="chain-chip${enabled.has(c.id)?' on':''}" id="chip-${c.id}">
+      <input type="checkbox" ${enabled.has(c.id)?'checked':''} onchange="toggleChain('${c.id}',this.checked)">
+      <span class="chain-dot" style="background:${c.color}"></span>
+      <span class="chain-name">${c.name}</span>
+      <span class="chain-id-badge">${c.chainId}</span>
+    </label>
+  `).join('');
+}
+
+function toggleChain(id, on){
+  const d=getData();
+  const s=new Set(d.enabledChains||[]);
+  on ? s.add(id) : s.delete(id);
+  d.enabledChains=[...s];
+  save(d);
+  const chip=document.getElementById('chip-'+id);
+  if(chip) chip.className='chain-chip'+(on?' on':'');
+  renderChainScopeSelects();
+}
+
+function selectAllChains(on){
+  const d=getData();
+  d.enabledChains=on?CHAINS.map(c=>c.id):[];
+  save(d);
+  renderChainGrid();
+  renderChainScopeSelects();
+}
+
+// ── Address book ──────────────────────────────────────────────────────────────
+function renderAddresses(){
+  const d=getData();
+  document.getElementById('addr-list').innerHTML=d.addresses.length ? d.addresses.map((a,i)=>`
+    <div class="card" style="display:flex;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span class="label-tag">${esc(a.label)}</span>
+          <span style="font-size:11px;color:var(--text3)">${scopeLabel(a.scope)}</span>
+        </div>
+        <div class="addr-mono">${a.address}</div>
+      </div>
+      <button class="btn small danger" onclick="removeAddr(${i})">remove</button>
+    </div>
+  `).join('') : '<div class="empty">No addresses yet</div>';
+  renderExportAddrList();
+}
+
+function scopeLabel(scope){
+  if(scope==='all') return 'all enabled chains';
+  const c=CHAINS.find(x=>x.id===scope);
+  return c ? c.name : scope;
+}
+
+function renderChainScopeSelects(){
+  const d=getData();
+  const enabled=(d.enabledChains||[]).map(id=>CHAINS.find(c=>c.id===id)).filter(Boolean);
+  const opts='<option value="all">All enabled chains</option>'+enabled.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  ['new-chain-scope','bulk-chain-scope','csv-chain-scope'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML=opts;
+  });
+}
+
+function addAddress(){
+  const addr=document.getElementById('new-addr').value.trim();
+  const label=document.getElementById('new-label').value.trim();
+  const scope=document.getElementById('new-chain-scope').value;
+  if(!addr||!label) return;
+  const d=getData();
+  d.addresses.push({address:addr,label,scope});
+  save(d);
+  document.getElementById('new-addr').value='';
+  document.getElementById('new-label').value='';
+  renderAddresses();
+}
+
+function removeAddr(i){
+  const d=getData();
+  d.addresses.splice(i,1);
+  save(d);
+  renderAddresses();
+}
+
+function renderExportAddrList(){
+  const d=getData();
+  const el=document.getElementById('export-addr-list');
+  if(d.addresses.length){
+    el.innerHTML=d.addresses.map((a,i)=>`
+      <div class="export-item">
+        <input type="checkbox" id="exp-cb-${i}" checked style="width:14px;height:14px;flex-shrink:0;accent-color:var(--text)">
+        <span class="label-tag">${esc(a.label)}</span>
+        <span class="addr-mono" style="flex:1">${a.address}</span>
+        <span style="font-size:11px;color:var(--text3);flex-shrink:0">${scopeLabel(a.scope)}</span>
+      </div>
+    `).join('');
+  } else {
+    el.innerHTML=`
+      <div class="empty" style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px 12px">
+        <div>No addresses to export yet</div>
+        <button class="btn small primary" onclick="showTab('addresses')">Go to Address book →</button>
+      </div>`;
+  }
+  updateExportRunBtnState();
+}
+
+// Keep the Run button reflective of whether an export is even possible.
+// Called whenever the address book or tab visibility changes.
+function updateExportRunBtnState(){
+  const btn=document.getElementById('run-btn');
+  if(!btn) return;
+  // Don't clobber transient state set by runExport itself ("Running…", "Fetching…")
+  if(btn.dataset.running==='1') return;
+  const d=getData();
+  if(!d.addresses.length){
+    btn.disabled=true;
+    btn.textContent='No addresses to export';
+  } else {
+    btn.disabled=false;
+    btn.textContent='Run export';
+  }
+}
+
+// ── Add sub-tabs ──────────────────────────────────────────────────────────────
+function showAddTab(t){
+  ['single','bulk','csv'].forEach(id=>{
+    const panel=document.getElementById('apanel-'+id);
+    const tab=document.getElementById('atab-'+id);
+    if(!panel||!tab) return;
+    const active=id===t;
+    panel.style.display=active?'':'none';
+    tab.style.background=active?'var(--bg)':'';
+    tab.style.fontWeight=active?'500':'';
+    tab.style.color=active?'var(--text)':'var(--text2)';
+  });
+}
+
+// ── Bulk paste ────────────────────────────────────────────────────────────────
+function importBulk(){
+  const raw=document.getElementById('bulk-text').value.trim();
+  const scope=document.getElementById('bulk-chain-scope').value;
+  const st=document.getElementById('bulk-status');
+  if(!raw){st.textContent='Nothing to import.';st.style.color='var(--danger-text)';return;}
+  const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const {valid,invalid}=parseBulkLines(lines,scope);
+  if(!valid.length){st.textContent='No valid addresses found.';st.style.color='var(--danger-text)';return;}
+  const d=getData();
+  const existing=new Set(d.addresses.map(a=>a.address.toLowerCase()));
+  let added=0,skipped=0;
+  valid.forEach(a=>{
+    if(existing.has(a.address.toLowerCase())){skipped++;return;}
+    d.addresses.push(a); existing.add(a.address.toLowerCase()); added++;
+  });
+  save(d); renderAddresses();
+  const parts=[];
+  if(added) parts.push(`${added} added`);
+  if(skipped) parts.push(`${skipped} duplicate${skipped>1?'s':''} skipped`);
+  if(invalid) parts.push(`${invalid} invalid line${invalid>1?'s':''} ignored`);
+  st.textContent=parts.join(' · ');
+  st.style.color=added?'var(--success-text)':'var(--text2)';
+  if(added) document.getElementById('bulk-text').value='';
+}
+
+function parseBulkLines(lines, defaultScope){
+  const valid=[]; let invalid=0;
+  lines.forEach((line,i)=>{
+    const parts=line.split(',').map(p=>p.trim());
+    const addr=parts[0];
+    if(!isValidAddress(addr)){invalid++;return;}
+    const label=parts[1]||`Address ${i+1}`;
+    const chainHint=parts[2]?CHAINS.find(c=>c.id===parts[2].toLowerCase()||c.name.toLowerCase()===parts[2].toLowerCase()):null;
+    valid.push({address:addr,label,scope:chainHint?chainHint.id:defaultScope});
+  });
+  return{valid,invalid};
+}
+
+// ── CSV file import ───────────────────────────────────────────────────────────
+function onCSVDrop(e){
+  e.preventDefault();
+  document.getElementById('csv-drop').style.background='';
+  const file=e.dataTransfer.files[0];
+  if(file) processCSVFile(file);
+}
+function onCSVFile(e){
+  const file=e.target.files[0];
+  if(file) processCSVFile(file);
+  e.target.value='';
+}
+function processCSVFile(file){
+  const st=document.getElementById('csv-status');
+  st.textContent='Reading…'; st.style.color='var(--text2)';
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const scope=document.getElementById('csv-chain-scope').value;
+      const result=parseCSVContent(ev.target.result,scope);
+      if(!result.valid.length){st.textContent='No valid addresses found. Make sure your CSV has an "address" column.';st.style.color='var(--danger-text)';return;}
+      const d=getData();
+      const existing=new Set(d.addresses.map(a=>a.address.toLowerCase()));
+      let added=0,skipped=0;
+      result.valid.forEach(a=>{
+        if(existing.has(a.address.toLowerCase())){skipped++;return;}
+        d.addresses.push(a); existing.add(a.address.toLowerCase()); added++;
+      });
+      save(d); renderAddresses();
+      const parts=[];
+      if(added) parts.push(`${added} added`);
+      if(skipped) parts.push(`${skipped} duplicate${skipped>1?'s':''} skipped`);
+      if(result.invalid) parts.push(`${result.invalid} invalid row${result.invalid>1?'s':''} ignored`);
+      st.textContent=parts.join(' · ');
+      st.style.color=added?'var(--success-text)':'var(--text2)';
+    }catch(e){st.textContent='Error: '+e.message;st.style.color='var(--danger-text)';}
+  };
+  reader.readAsText(file);
+}
+function parseCSVContent(text,defaultScope){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length) return{valid:[],invalid:0};
+  const header=splitCSVRow(lines[0]).map(h=>h.trim().toLowerCase().replace(/^"|"$/g,''));
+  const addrIdx=header.findIndex(h=>['address','wallet','addr'].includes(h));
+  const labelIdx=header.findIndex(h=>['label','name','tag'].includes(h));
+  const chainIdx=header.findIndex(h=>['chain','network','scope'].includes(h));
+  const hasHeader=addrIdx>=0;
+  const startRow=hasHeader?1:0;
+  const aIdx=hasHeader?addrIdx:0;
+  const lIdx=hasHeader?labelIdx:1;
+  const cIdx=hasHeader?chainIdx:-1;
+  const valid=[]; let invalid=0;
+  lines.slice(startRow).forEach((line,i)=>{
+    if(!line.trim()) return;
+    const cols=splitCSVRow(line).map(c=>c.trim().replace(/^"|"$/g,''));
+    const addr=cols[aIdx]||'';
+    if(!isValidAddress(addr)){invalid++;return;}
+    const label=(lIdx>=0&&cols[lIdx])||`Row ${startRow+i+1}`;
+    const chainRaw=cIdx>=0?cols[cIdx]:'';
+    const chainHint=chainRaw?CHAINS.find(c=>c.id===chainRaw.toLowerCase()||c.name.toLowerCase()===chainRaw.toLowerCase()):null;
+    valid.push({address:addr,label,scope:chainHint?chainHint.id:defaultScope});
+  });
+  return{valid,invalid};
+}
+function splitCSVRow(line){
+  const result=[]; let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){ if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ; }
+    else if(ch===','&&!inQ){ result.push(cur); cur=''; }
+    else cur+=ch;
+  }
+  result.push(cur); return result;
+}
+function isValidAddress(addr){ return /^0x[0-9a-fA-F]{40}$/.test(addr); }
+
+// ── Presets / date range ──────────────────────────────────────────────────────
+function renderPresets(){
+  document.getElementById('presets-row').innerHTML=PRESETS.map(p=>
+    `<button class="btn preset${p.id===activePreset?' active':''}" onclick="applyPreset('${p.id}')">${p.label}</button>`
+  ).join('');
+}
+function applyPreset(id){
+  activePreset=id;
+  const {from,to}=PRESETS.find(p=>p.id===id).fn();
+  document.getElementById('date-from').value=from?toDateInput(from):'';
+  document.getElementById('date-to').value=to?toDateInput(to):'';
+  renderPresets(); updateRangeSummary();
+}
+function onDateChange(){ activePreset=null; renderPresets(); updateRangeSummary(); }
+function updateRangeSummary(){
+  const f=document.getElementById('date-from').value;
+  const t=document.getElementById('date-to').value;
+  const el=document.getElementById('range-summary');
+  if(!f&&!t){el.textContent='Fetching all available history';return;}
+  if(f&&t){const days=Math.round((new Date(t+'T00:00:00Z')-new Date(f+'T00:00:00Z'))/86400000)+1;el.textContent=`${days.toLocaleString()} day${days!==1?'s':''} selected · UTC, end-of-day inclusive`;return;}
+  el.textContent=(f?`From ${f} onwards`:`Up to ${t}`)+' · UTC';
+}
+function getBlockRange(){
+  // Use UTC explicitly on both boundaries so block resolution matches what
+  // Etherscan's explorer shows. Without the trailing Z, the end timestamp
+  // would be parsed in the user's local timezone — wrong for accounting.
+  const f=document.getElementById('date-from').value;
+  const t=document.getElementById('date-to').value;
+  return{
+    startTs: f ? toUnix(new Date(f+'T00:00:00Z')) : null,
+    endTs:   t ? toUnix(new Date(t+'T23:59:59Z')) : null,
+  };
+}
+function toDateInput(d){ return d?d.toISOString().slice(0,10):''; }
+function toUnix(d){ return Math.floor(d.getTime()/1000); }
+
+// ── Download mode ─────────────────────────────────────────────────────────────
+function selectMode(m){
+  downloadMode=m;
+  document.querySelectorAll('.mode-card').forEach(el=>el.classList.toggle('selected',el.dataset.mode===m));
+}
+
+// ── Tab routing ───────────────────────────────────────────────────────────────
+function showTab(t){
+  ['keys','addresses','counterparties','export','snapshots'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display=id===t?'':'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    el.classList.toggle('active',['keys','addresses','counterparties','export','snapshots'][i]===t);
+  });
+  if(t==='export'){ renderExportAddrList(); updateExportCpStatus(); }
+  if(t==='snapshots') renderSnapAddrList();
+  if(t==='counterparties') renderCounterparties();
+}
+
+// ── Counterparties ────────────────────────────────────────────────────────────
+// A flat address→label map for joining onto export rows. Distinct from the
+// address book (which is "wallets I own and want to export"). Counterparties
+// are typically: CEX deposit addresses, friends' wallets, contract addresses
+// (Uniswap router, Aave pool), etc.
+
+function renderCounterparties(){
+  const d=getData();
+  const list=d.counterparties||[];
+  document.getElementById('cp-count').textContent=list.length;
+  const el=document.getElementById('cp-list');
+  if(!list.length){ el.innerHTML='<div class="empty">No counterparties yet</div>'; }
+  else {
+    // Show newest first so recent additions are visible without scrolling
+    el.innerHTML=list.slice().reverse().map((cp)=>{
+      const realIdx=list.indexOf(cp);
+      const cat=cp.category||'Other';
+      return `
+        <div class="card" style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+              <span class="label-tag">${esc(cp.label)}</span>
+              <span style="font-size:11px;color:var(--text3);background:var(--bg2);padding:1px 7px;border-radius:999px">${esc(cat)}</span>
+            </div>
+            <div class="addr-mono">${cp.address}</div>
+          </div>
+          <button class="btn small danger" onclick="removeCounterparty(${realIdx})">remove</button>
+        </div>`;
+    }).join('');
+  }
+  // Refresh dependent UIs
+  renderCpCategorySelects();
+  renderSeedList();
+  updateExportCpStatus();
+}
+
+// Populate every <select> that lists CATEGORIES. Re-rendered on demand because
+// some panels are display:none on first paint and innerHTML on hidden elements
+// is harmless but worth re-running when the panel becomes visible.
+function renderCpCategorySelects(){
+  const opts=CATEGORIES.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  ['cp-new-category','cp-bulk-fallback-category','cp-csv-fallback-category','cs-category'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    const prev=el.value;
+    el.innerHTML=opts;
+    // Default to "Other" for the single-add field; "Token Contract" feels
+    // like a sensible fallback for bulk/CSV (most dumps from explorers are tokens)
+    const fallback = id==='cp-new-category' ? 'Other' : 'Other';
+    el.value = (prev && CATEGORIES.includes(prev)) ? prev : fallback;
+  });
+}
+
+// ── Common-contracts seed panel ──────────────────────────────────────────────
+// Combined list of built-in seeds + user-added custom seeds. Each entry gets
+// a stable index based on its position in the combined list, used for the
+// checkbox id. Custom entries are tagged with `_custom=true` so the renderer
+// can show a remove button.
+function getAllSeeds(){
+  const d=getData();
+  const builtins = SEED_CONTRACTS.map(s => ({...s, _custom:false}));
+  const custom = (d.customSeeds || []).map(s => ({...s, _custom:true}));
+  return [...builtins, ...custom].map((s,i) => ({...s, _idx:i}));
+}
+
+function renderSeedList(){
+  const el=document.getElementById('cp-seed-list');
+  if(!el) return;
+  const d=getData();
+  const saved=new Set((d.counterparties||[]).map(c=>c.address.toLowerCase()));
+  const all=getAllSeeds();
+  if(!all.length){ el.innerHTML='<div class="empty" style="padding:12px">No contracts yet — click "+ Add custom" to add one</div>'; return; }
+  // Group by category for readability. CATEGORIES order is preserved.
+  const byCat=new Map();
+  CATEGORIES.forEach(c=>byCat.set(c,[]));
+  all.forEach(s=>{
+    const cat=byCat.has(s.category)?s.category:'Other';
+    byCat.get(cat).push(s);
+  });
+  let html='';
+  byCat.forEach((items,cat)=>{
+    if(!items.length) return;
+    html+=`<div style="font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;padding:8px 0 4px">${esc(cat)} <span style="color:var(--text3);font-weight:400">(${items.length})</span></div>`;
+    items.forEach(s=>{
+      const isSaved=saved.has(s.address.toLowerCase());
+      const customTag = s._custom
+        ? `<span style="font-size:10px;color:var(--info-text);background:var(--info-bg);padding:1px 6px;border-radius:999px;flex-shrink:0">custom</span>`
+        : '';
+      const removeBtn = s._custom
+        ? `<button class="btn small danger" style="padding:0 6px;height:22px;font-size:11px;flex-shrink:0" onclick="removeCustomSeed('${esc(s.address)}')" title="Remove from custom list">×</button>`
+        : '';
+      html+=`
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:${isSaved?'default':'pointer'};font-size:12px;${isSaved?'opacity:0.55':''}">
+          <input type="checkbox" id="seed-cb-${s._idx}" data-addr="${esc(s.address)}" data-label="${esc(s.label)}" data-category="${esc(s.category)}" ${isSaved?'checked disabled':'checked'} style="accent-color:var(--text);width:13px;height:13px">
+          <span style="flex-shrink:0;min-width:170px"><strong>${esc(s.label)}</strong></span>
+          <span class="addr-mono" style="flex:1;font-size:11px">${s.address}</span>
+          ${customTag}
+          <span style="font-size:10px;color:var(--text3);flex-shrink:0">${esc(s.notes||'')}</span>
+          ${isSaved?'<span style="font-size:10px;color:var(--success-text);flex-shrink:0">✓ saved</span>':''}
+          ${removeBtn}
+        </label>`;
+    });
+  });
+  el.innerHTML=html;
+}
+
+function seedSelectAll(on){
+  // Walk every rendered checkbox in case custom-vs-built-in indexing shifts
+  document.querySelectorAll('#cp-seed-list input[type=checkbox]').forEach(cb=>{
+    if(!cb.disabled) cb.checked=on;
+  });
+}
+
+function addSelectedSeeds(){
+  const incoming=[];
+  document.querySelectorAll('#cp-seed-list input[type=checkbox]').forEach(cb=>{
+    if(cb.disabled || !cb.checked) return;
+    incoming.push({
+      address: cb.dataset.addr,
+      label:   cb.dataset.label,
+      category: cb.dataset.category,
+    });
+  });
+  const st=document.getElementById('cp-seed-status');
+  if(!incoming.length){ st.textContent='Nothing selected.'; st.style.color='var(--text2)'; return; }
+  const result=mergeCounterparties(incoming);
+  st.textContent=summarizeCpImport(result, 0);
+  st.style.color=result.added||result.updated?'var(--success-text)':'var(--text2)';
+  renderCounterparties();
+}
+
+// ── Custom seed management ───────────────────────────────────────────────────
+function toggleCustomSeedForm(){
+  const f=document.getElementById('cp-custom-seed-form');
+  const visible=f.style.display!=='none';
+  f.style.display=visible?'none':'';
+  const btn=document.getElementById('cs-toggle-btn');
+  if(btn) btn.textContent = visible ? '+ Add custom' : '× Cancel adding';
+  if(!visible){
+    // Make sure the category select is populated (renderCpCategorySelects handles this on init)
+    const sel=document.getElementById('cs-category');
+    if(sel && !sel.options.length) renderCpCategorySelects();
+    // Clear any stale status from a previous save
+    const st=document.getElementById('cs-form-status');
+    if(st){ st.textContent=''; }
+    setTimeout(()=>{ const a=document.getElementById('cs-addr'); if(a) a.focus(); }, 0);
+  }
+}
+
+function saveCustomSeed(){
+  const addr=document.getElementById('cs-addr').value.trim();
+  const label=document.getElementById('cs-label').value.trim();
+  const category=document.getElementById('cs-category').value || 'Other';
+  const notes=document.getElementById('cs-notes').value.trim();
+  const st=document.getElementById('cs-form-status');
+  const setErr = msg => { st.textContent=msg; st.style.color='var(--danger-text)'; };
+  const setOk  = msg => { st.textContent=msg; st.style.color='var(--success-text)'; };
+
+  if(!isValidAddress(addr)){ setErr('Not a valid 0x address'); return; }
+  if(!label){ setErr('Label is required'); return; }
+
+  const lower=addr.toLowerCase();
+  // Don't allow shadowing a built-in seed (would create a duplicate row in the list).
+  // The user can still tweak it post-import on the saved counterparties tab.
+  const builtin=SEED_CONTRACTS.find(s => s.address.toLowerCase()===lower);
+  if(builtin){ setErr(`Already in the built-in list as "${builtin.label}". Add it from the list, then edit on the main tab.`); return; }
+
+  const d=getData();
+  const customs=d.customSeeds||[];
+  const existing=customs.findIndex(s => s.address.toLowerCase()===lower);
+  if(existing>=0){
+    customs[existing]={address:addr,label,category,notes};
+    setOk('Updated');
+  } else {
+    customs.push({address:addr,label,category,notes});
+    setOk('Added');
+  }
+  d.customSeeds=customs;
+  save(d);
+
+  // Clear the address/label/notes inputs so the user can type the next one
+  // without retyping the category. Keep category sticky for fast bulk entry.
+  document.getElementById('cs-addr').value='';
+  document.getElementById('cs-label').value='';
+  document.getElementById('cs-notes').value='';
+  document.getElementById('cs-addr').focus();
+
+  renderSeedList();
+}
+
+function removeCustomSeed(address){
+  const d=getData();
+  const lower=address.toLowerCase();
+  d.customSeeds=(d.customSeeds||[]).filter(s => s.address.toLowerCase()!==lower);
+  save(d);
+  renderSeedList();
+}
+
+function showCpTab(t){
+  ['single','bulk','csv','seed'].forEach(id=>{
+    const panel=document.getElementById('cppanel-'+id);
+    const tab=document.getElementById('cptab-'+id);
+    if(!panel||!tab) return;
+    const active=id===t;
+    panel.style.display=active?'':'none';
+    tab.style.background=active?'var(--bg)':'';
+    tab.style.fontWeight=active?'500':'';
+    tab.style.color=active?'var(--text)':'var(--text2)';
+  });
+  // Re-render the seed list when its panel becomes visible (saved-set may have
+  // changed since the user last looked at it)
+  if(t==='seed') renderSeedList();
+}
+
+function addCounterparty(){
+  const addr=document.getElementById('cp-new-addr').value.trim();
+  const label=document.getElementById('cp-new-label').value.trim();
+  const category=document.getElementById('cp-new-category').value || 'Other';
+  if(!addr||!label) return;
+  if(!isValidAddress(addr)){ alert('Not a valid 0x address'); return; }
+  const d=getData();
+  const lower=addr.toLowerCase();
+  // Update existing entry if address matches (case-insensitive), else append
+  const existing=d.counterparties.findIndex(c=>c.address.toLowerCase()===lower);
+  if(existing>=0) d.counterparties[existing]={address:addr,label,category};
+  else d.counterparties.push({address:addr,label,category});
+  save(d);
+  document.getElementById('cp-new-addr').value='';
+  document.getElementById('cp-new-label').value='';
+  // Keep category sticky for fast bulk entry
+  renderCounterparties();
+}
+
+function removeCounterparty(i){
+  const d=getData();
+  d.counterparties.splice(i,1);
+  save(d);
+  renderCounterparties();
+}
+
+function clearCounterparties(){
+  const d=getData();
+  if(!d.counterparties.length) return;
+  if(!confirm(`Remove all ${d.counterparties.length} counterparties? This cannot be undone.`)) return;
+  d.counterparties=[];
+  save(d);
+  renderCounterparties();
+}
+
+function importCounterpartiesBulk(){
+  const raw=document.getElementById('cp-bulk-text').value.trim();
+  const fallback=document.getElementById('cp-bulk-fallback-category').value || 'Other';
+  const st=document.getElementById('cp-bulk-status');
+  if(!raw){ st.textContent='Nothing to import.'; st.style.color='var(--danger-text)'; return; }
+  const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const {valid,invalid}=parseCounterpartyLines(lines, fallback);
+  if(!valid.length){ st.textContent='No valid address,label pairs found.'; st.style.color='var(--danger-text)'; return; }
+  const result=mergeCounterparties(valid);
+  st.textContent=summarizeCpImport(result, invalid);
+  st.style.color=result.added||result.updated?'var(--success-text)':'var(--text2)';
+  if(result.added||result.updated) document.getElementById('cp-bulk-text').value='';
+  renderCounterparties();
+}
+
+// Match an incoming category string (case-insensitive, fuzzy) against the
+// CATEGORIES enum. Returns the canonical CATEGORIES value or null if no match.
+function resolveCategory(raw){
+  if(!raw) return null;
+  const norm=raw.trim().toLowerCase();
+  // Direct match
+  const direct=CATEGORIES.find(c=>c.toLowerCase()===norm);
+  if(direct) return direct;
+  // Common shorthand → canonical
+  const aliases={
+    'cex':'Exchange (CEX)', 'exchange':'Exchange (CEX)', 'centralized exchange':'Exchange (CEX)',
+    'dex':'DEX', 'dex router':'DEX', 'aggregator':'DEX', 'swap':'DEX',
+    'lending':'Lending', 'lend':'Lending', 'borrow':'Lending',
+    'staking':'Staking', 'stake':'Staking', 'validator':'Staking',
+    'bridge':'Bridge', 'cross-chain':'Bridge',
+    'token':'Token Contract', 'erc20':'Token Contract', 'erc-20':'Token Contract', 'token contract':'Token Contract',
+    'wallet':'Wallet (Personal)', 'personal':'Wallet (Personal)', 'eoa':'Wallet (Personal)',
+    'service':'Service Provider', 'service provider':'Service Provider', 'vendor':'Service Provider',
+    'other':'Other',
+  };
+  return aliases[norm] || null;
+}
+
+function parseCounterpartyLines(lines, fallbackCategory){
+  const valid=[]; let invalid=0;
+  lines.forEach(line=>{
+    // Need at least one comma. If no comma, treat as invalid (label is required).
+    const firstComma=line.indexOf(',');
+    if(firstComma<0){ invalid++; return; }
+    const addr=line.slice(0,firstComma).trim();
+    const rest=line.slice(firstComma+1);
+    // Split off optional category from the right side. If second comma exists,
+    // everything after it is the category; otherwise the whole rest is the label.
+    const secondComma=rest.indexOf(',');
+    let label, categoryRaw='';
+    if(secondComma>=0){
+      label=rest.slice(0,secondComma).trim().replace(/^"|"$/g,'');
+      categoryRaw=rest.slice(secondComma+1).trim().replace(/^"|"$/g,'');
+    } else {
+      label=rest.trim().replace(/^"|"$/g,'');
+    }
+    if(!isValidAddress(addr) || !label){ invalid++; return; }
+    const category=resolveCategory(categoryRaw) || fallbackCategory || 'Other';
+    valid.push({address:addr,label,category});
+  });
+  return {valid,invalid};
+}
+
+// Merge incoming entries against the saved list. Updates label/category if
+// address already exists (case-insensitive); otherwise appends. Returns counts.
+function mergeCounterparties(incoming){
+  const d=getData();
+  const byAddr=new Map(d.counterparties.map(c=>[c.address.toLowerCase(),c]));
+  let added=0, updated=0, unchanged=0;
+  for(const cp of incoming){
+    const lower=cp.address.toLowerCase();
+    if(byAddr.has(lower)){
+      const cur=byAddr.get(lower);
+      const newCat=cp.category || cur.category || 'Other';
+      if(cur.label!==cp.label || (cur.category||'')!==newCat){
+        cur.label=cp.label;
+        cur.address=cp.address;
+        cur.category=newCat;
+        updated++;
+      } else unchanged++;
+    } else {
+      d.counterparties.push({address:cp.address,label:cp.label,category:cp.category||'Other'});
+      byAddr.set(lower,cp);
+      added++;
+    }
+  }
+  save(d);
+  return {added,updated,unchanged};
+}
+
+function summarizeCpImport(result, invalid){
+  const parts=[];
+  if(result.added) parts.push(`${result.added} added`);
+  if(result.updated) parts.push(`${result.updated} updated`);
+  if(result.unchanged) parts.push(`${result.unchanged} unchanged`);
+  if(invalid) parts.push(`${invalid} invalid line${invalid>1?'s':''} ignored`);
+  return parts.join(' · ') || 'Nothing to import.';
+}
+
+function onCpCSVDrop(e){
+  e.preventDefault();
+  document.getElementById('cp-csv-drop').style.background='';
+  const file=e.dataTransfer.files[0];
+  if(file) processCounterpartyCSVFile(file);
+}
+function onCpCSVFile(e){
+  const file=e.target.files[0];
+  if(file) processCounterpartyCSVFile(file);
+  e.target.value='';
+}
+function processCounterpartyCSVFile(file){
+  const st=document.getElementById('cp-csv-status');
+  st.textContent='Reading…'; st.style.color='var(--text2)';
+  const fallback=document.getElementById('cp-csv-fallback-category').value || 'Other';
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const {valid,invalid}=parseCounterpartyCSVContent(ev.target.result, fallback);
+      if(!valid.length){ st.textContent='No valid rows found. Make sure your CSV has "address" and "label" columns.'; st.style.color='var(--danger-text)'; return; }
+      const result=mergeCounterparties(valid);
+      st.textContent=summarizeCpImport(result, invalid);
+      st.style.color=result.added||result.updated?'var(--success-text)':'var(--text2)';
+      renderCounterparties();
+    }catch(e){ st.textContent='Error: '+e.message; st.style.color='var(--danger-text)'; }
+  };
+  reader.readAsText(file);
+}
+
+function parseCounterpartyCSVContent(text, fallbackCategory){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length) return{valid:[],invalid:0};
+  const header=splitCSVRow(lines[0]).map(h=>h.trim().toLowerCase().replace(/^"|"$/g,''));
+  const addrIdx=header.findIndex(h=>['address','wallet','addr'].includes(h));
+  const labelIdx=header.findIndex(h=>['label','name','tag','counterparty'].includes(h));
+  const catIdx=header.findIndex(h=>['category','type','class'].includes(h));
+  const hasHeader=addrIdx>=0;
+  const startRow=hasHeader?1:0;
+  const aIdx=hasHeader?addrIdx:0;
+  const lIdx=hasHeader?(labelIdx>=0?labelIdx:1):1;
+  const cIdx=hasHeader?catIdx:-1;
+  const valid=[]; let invalid=0;
+  lines.slice(startRow).forEach(line=>{
+    if(!line.trim()) return;
+    const cols=splitCSVRow(line).map(c=>c.trim().replace(/^"|"$/g,''));
+    const addr=cols[aIdx]||'';
+    const label=cols[lIdx]||'';
+    if(!isValidAddress(addr) || !label){ invalid++; return; }
+    const categoryRaw=cIdx>=0?(cols[cIdx]||''):'';
+    const category=resolveCategory(categoryRaw) || fallbackCategory || 'Other';
+    valid.push({address:addr,label,category});
+  });
+  return{valid,invalid};
+}
+
+function exportCounterpartiesCSV(){
+  const d=getData();
+  if(!d.counterparties.length){ alert('No counterparties to export.'); return; }
+  const lines=['address,label,category'];
+  d.counterparties.forEach(cp=>{
+    lines.push(`${escapeCSV(cp.address)},${escapeCSV(cp.label)},${escapeCSV(cp.category||'Other')}`);
+  });
+  triggerDownload(lines.join('\n'),'counterparties.csv');
+}
+
+// ── Label lookup map ─────────────────────────────────────────────────────────
+// Combine counterparties + own address-book labels into a single
+// lowercase-address → { label, category } Map. Counterparties take priority
+// over the address book if the same address appears in both (the user
+// explicitly added it as a counterparty, presumably with intent).
+function buildLabelMap(){
+  const d=getData();
+  const map=new Map();
+  // Address book first — own wallets — so counterparties can override
+  (d.addresses||[]).forEach(a=>{
+    if(a.address && a.label) map.set(a.address.toLowerCase(), { label: a.label, category: 'Wallet (Personal)' });
+  });
+  (d.counterparties||[]).forEach(c=>{
+    if(c.address && c.label) map.set(c.address.toLowerCase(), { label: c.label, category: c.category || 'Other' });
+  });
+  return map;
+}
+
+function updateExportCpStatus(){
+  const el=document.getElementById('export-cp-status');
+  if(!el) return;
+  const d=getData();
+  const cpCount=(d.counterparties||[]).length;
+  const addrCount=(d.addresses||[]).length;
+  if(!cpCount && !addrCount){
+    el.textContent='No labels configured — _from_label / _to_label columns will be empty';
+    return;
+  }
+  // Build only the clauses that have a non-zero count, joined with " + "
+  const parts=[];
+  if(cpCount) parts.push(`${cpCount} counterpart${cpCount===1?'y':'ies'}`);
+  if(addrCount) parts.push(`${addrCount} own wallet${addrCount===1?'':'s'}`);
+  el.textContent=`Labeling enabled: ${parts.join(' + ')}`;
+}
+
+// Insert label and category columns next to the relevant address columns.
+// Etherscan tx rows have `from` and `to`; token endpoints also have `contractAddress`.
+// We insert each pair immediately after its source column for natural CSV reading.
+function enrichRowsWithLabels(rows, labelMap){
+  if(!rows.length) return rows;
+  const EMPTY = { label:'', category:'' };
+  const lookup = a => (a && labelMap.get(a.toLowerCase())) || EMPTY;
+  return rows.map(r=>{
+    const out={};
+    let injectedFrom=false, injectedTo=false, injectedContract=false;
+    for(const [k,v] of Object.entries(r)){
+      out[k]=v;
+      if(k==='from'){
+        const x=lookup(v); out._from_label=x.label; out._from_category=x.category; injectedFrom=true;
+      } else if(k==='to'){
+        const x=lookup(v); out._to_label=x.label; out._to_category=x.category; injectedTo=true;
+      } else if(k==='contractAddress'){
+        const x=lookup(v); out._contract_label=x.label; out._contract_category=x.category; injectedContract=true;
+      }
+    }
+    // Ensure columns exist on every row even if a particular row is missing
+    // the source field — keeps the CSV header consistent across all rows.
+    if(!injectedFrom){ out._from_label=''; out._from_category=''; }
+    if(!injectedTo){   out._to_label='';   out._to_category=''; }
+    // _contract_label/category only added when the row originally has contractAddress
+    if('contractAddress' in r && !injectedContract){
+      out._contract_label=''; out._contract_category='';
+    }
+    return out;
+  });
+}
+
+// ── Etherscan V2 API calls ────────────────────────────────────────────────────
+function getEnabledChainsForScope(scope){
+  const d=getData();
+  const enabled=new Set(d.enabledChains||[]);
+  if(scope==='all') return CHAINS.filter(c=>enabled.has(c.id));
+  const c=CHAINS.find(x=>x.id===scope);
+  return c&&enabled.has(c.id)?[c]:[];
+}
+
+async function getBlockNumber(apiKey, chainId, ts){
+  const url=`${API_BASE}?chainid=${chainId}&module=block&action=getblocknobytime&timestamp=${ts}&closest=before&apikey=${apiKey}`;
+  let j;
+  try {
+    const r=await fetch(url);
+    j=await r.json();
+  } catch(e) {
+    throw new Error(`block lookup network error: ${e.message}`);
+  }
+  if(j.status==='1'){
+    const n=parseInt(j.result, 10);
+    if(!Number.isFinite(n)) throw new Error(`block lookup returned non-numeric result: ${j.result}`);
+    return n;
+  }
+  // Surface the API's own message so users see "rate limit", "invalid key", or
+  // "chain not supported" instead of silently falling through to "all time".
+  throw new Error(j.message || j.result || 'block lookup failed');
+}
+
+async function fetchTxs(apiKey, chainId, address, action, offset, startBlock, endBlock){
+  const url=`${API_BASE}?chainid=${chainId}&module=account&action=${action}&address=${address}&startblock=${startBlock??0}&endblock=${endBlock??99999999}&page=1&offset=${offset}&sort=desc&apikey=${apiKey}`;
+  const r=await fetch(url); const j=await r.json();
+  if(j.status==='1') return j.result;
+  if(j.message==='No transactions found') return [];
+  throw new Error(j.message||j.result||'API error');
+}
+
+// ── Contract interaction classification ──────────────────────────────────────
+// Known 4-byte function selectors → human label + accounting category
+const KNOWN_SELECTORS = {
+  // ERC-20
+  'a9059cbb': { fn:'transfer()',          cat:'Transfer',    acct:'Token Transfer'        },
+  '23b872dd': { fn:'transferFrom()',      cat:'Transfer',    acct:'Token Transfer'        },
+  '095ea7b3': { fn:'approve()',           cat:'Approval',    acct:'Contract Interaction'  },
+  // DEX swaps
+  '38ed1739': { fn:'swapExactTokensForTokens()', cat:'Swap', acct:'Trading'              },
+  '7ff36ab5': { fn:'swapExactETHForTokens()',    cat:'Swap', acct:'Trading'              },
+  '18cbafe5': { fn:'swapExactTokensForETH()',    cat:'Swap', acct:'Trading'              },
+  'fb3bdb41': { fn:'swapETHForExactTokens()',    cat:'Swap', acct:'Trading'              },
+  '5c11d795': { fn:'swapExactTokensForTokensSupportingFeeOnTransferTokens()', cat:'Swap', acct:'Trading' },
+  'b6f9de95': { fn:'swapExactETHForTokensSupportingFeeOnTransferTokens()',    cat:'Swap', acct:'Trading' },
+  '4a25d94a': { fn:'swapTokensForExactETH()',    cat:'Swap', acct:'Trading'              },
+  '8803dbee': { fn:'swapTokensForExactTokens()', cat:'Swap', acct:'Trading'              },
+  // Uniswap V3
+  '414bf389': { fn:'exactInputSingle()',  cat:'Swap',        acct:'Trading'              },
+  'c04b8d59': { fn:'exactInput()',        cat:'Swap',        acct:'Trading'              },
+  'db3e2198': { fn:'exactOutputSingle()', cat:'Swap',        acct:'Trading'              },
+  'f28c0498': { fn:'exactOutput()',       cat:'Swap',        acct:'Trading'              },
+  'ac9650d8': { fn:'multicall()',         cat:'Multicall',   acct:'Trading'              },
+  // Liquidity
+  'e8e33700': { fn:'addLiquidity()',      cat:'Liquidity',   acct:'DeFi - LP Add'        },
+  'f305d719': { fn:'addLiquidityETH()',   cat:'Liquidity',   acct:'DeFi - LP Add'        },
+  'baa2abde': { fn:'removeLiquidity()',   cat:'Liquidity',   acct:'DeFi - LP Remove'     },
+  '02751cec': { fn:'removeLiquidityETH()', cat:'Liquidity',  acct:'DeFi - LP Remove'     },
+  'af2979eb': { fn:'removeLiquidityETHSupportingFeeOnTransferTokens()', cat:'Liquidity', acct:'DeFi - LP Remove' },
+  // Lending / Aave
+  'e8eda9df': { fn:'deposit()',           cat:'Lending',     acct:'DeFi - Deposit'       },
+  '69328dec': { fn:'withdraw()',          cat:'Lending',     acct:'DeFi - Withdrawal'    },
+  'a415bcad': { fn:'borrow()',            cat:'Lending',     acct:'DeFi - Borrow'        },
+  '573ade81': { fn:'repay()',             cat:'Lending',     acct:'DeFi - Repay'         },
+  '617ba037': { fn:'supply()',            cat:'Lending',     acct:'DeFi - Deposit'       },
+  // Staking / yield
+  'a694fc3a': { fn:'stake()',             cat:'Staking',     acct:'DeFi - Stake'         },
+  '3d18b912': { fn:'getReward()',         cat:'Staking',     acct:'Income - Reward'      },
+  'e9fad8ee': { fn:'exit()',              cat:'Staking',     acct:'DeFi - Unstake'       },
+  // Bridges
+  'ae60bd31': { fn:'deposit()',           cat:'Bridge',      acct:'Bridge'               },
+  '4faa8a26': { fn:'depositERC20()',      cat:'Bridge',      acct:'Bridge'               },
+  // NFT
+  '42842e0e': { fn:'safeTransferFrom()',  cat:'NFT Transfer',acct:'NFT Transfer'         },
+  'b88d4fde': { fn:'safeTransferFrom(with data)', cat:'NFT Transfer', acct:'NFT Transfer'},
+  'a22cb465': { fn:'setApprovalForAll()', cat:'NFT Approval',acct:'Contract Interaction' },
+  // Wrapping
+  'd0e30db0': { fn:'deposit() [wrap ETH]',cat:'Wrap',        acct:'Token Wrap/Unwrap'    },
+  // Ambiguous: 0x2e1a7d4d is the selector for `withdraw(uint256)` — used by BOTH WETH (unwrap)
+  // and most staking contracts (unstake). Without a per-contract lookup we can't disambiguate,
+  // so we label it neutrally and let the user resolve from the contract address column.
+  '2e1a7d4d': { fn:'withdraw(uint256)',   cat:'Withdraw',    acct:'Withdraw / Unwrap'    },
+};
+
+const CAT_COLORS = {
+  'Transfer':  { bg:'#e6f1fb', fg:'#185fa5' },
+  'Swap':      { bg:'#edf8e6', fg:'#3a6e0e' },
+  'Liquidity': { bg:'#fdf3e3', fg:'#8a4f00' },
+  'Lending':   { bg:'#f0ebfb', fg:'#5c2ea8' },
+  'Staking':   { bg:'#fbf0e6', fg:'#9a4200' },
+  'Bridge':    { bg:'#e6f7fb', fg:'#0a6b7c' },
+  'NFT Transfer':{ bg:'#fce6fb', fg:'#7a0a7c' },
+  'NFT Approval':{ bg:'#fce6fb', fg:'#7a0a7c' },
+  'Wrap':      { bg:'#f5f5e6', fg:'#6b6b00' },
+  'Unwrap':    { bg:'#f5f5e6', fg:'#6b6b00' },
+  'Withdraw':  { bg:'#f5f5e6', fg:'#6b6b00' },
+  'Approval':  { bg:'#eeeeee', fg:'#555555' },
+  'Multicall': { bg:'#eee8f8', fg:'#4a3080' },
+  'Contract':  { bg:'#f0f0f0', fg:'#444444' },
+};
+
+function classifyInput(input){
+  if(!input || input==='0x' || input==='0x0') return { selector:'', fn:'ETH Transfer', cat:'Transfer', acct:'ETH Transfer' };
+  const selector=(input.startsWith('0x')?input.slice(2):input).slice(0,8).toLowerCase();
+  const known=KNOWN_SELECTORS[selector];
+  if(known) return { selector:'0x'+selector, ...known };
+  return { selector:'0x'+selector, fn:'Unknown ('+selector+')', cat:'Contract', acct:'Contract Interaction' };
+}
+
+function enrichRows(rows){
+  // Only applies to txlist (normal transactions) — they have an `input` field
+  return rows.map(row=>{
+    if(row.input===undefined) return {...row, _selector:'', _fn:'', _category:'', _acct_category:''};
+    const c=classifyInput(row.input);
+    return {...row, _selector:c.selector, _fn:c.fn, _category:c.cat, _acct_category:c.acct};
+  });
+}
+
+// ── UTC date enrichment ──────────────────────────────────────────────────────
+// Etherscan returns `timeStamp` as a Unix-seconds string. For accounting we add
+// human-readable UTC columns matching what the explorer displays. The
+// `datetime_utc` format ("YYYY-MM-DD HH:MM:SS") is the same one Etherscan uses
+// in its own CSV downloads, and Excel/Sheets parse it as a datetime.
+function tsToUtcParts(ts){
+  if(ts===undefined||ts===null||ts==='') return { datetime_utc:'', date_utc:'' };
+  const n=parseInt(ts,10);
+  if(!Number.isFinite(n)) return { datetime_utc:'', date_utc:'' };
+  const dt=new Date(n*1000).toISOString().slice(0,19).replace('T',' '); // "2024-12-31 23:59:48"
+  return { datetime_utc:dt, date_utc:dt.slice(0,10) };
+}
+
+function enrichRowsWithDates(rows){
+  // Insert datetime_utc + date_utc immediately after timeStamp so the columns
+  // sit next to each other in the CSV. Falls back to appending if there's no
+  // timeStamp field on a row (shouldn't happen with current Etherscan endpoints).
+  return rows.map(r=>{
+    const parts=tsToUtcParts(r.timeStamp);
+    if(!('timeStamp' in r)) return { ...r, ...parts };
+    const out={};
+    for(const [k,v] of Object.entries(r)){
+      out[k]=v;
+      if(k==='timeStamp'){ out.datetime_utc=parts.datetime_utc; out.date_utc=parts.date_utc; }
+    }
+    return out;
+  });
+}
+
+// ── Snapshots ─────────────────────────────────────────────────────────────────
+let snapData = []; // [{ label, address, chain, chainId, ethBalance, tokens:[], ethApprox?:bool }]
+let snapMode = 'now';        // 'now' | 'hist'
+let snapHistDate = null;     // YYYY-MM-DD string (UTC end-of-day)
+let snapLastDate = null;     // ISO date string actually used by the most recent snapshot run
+
+function renderSnapAddrList(){
+  const d=getData();
+  const el=document.getElementById('snap-addr-list');
+  if(d.addresses.length){
+    el.innerHTML=d.addresses.map((a,i)=>`
+      <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px">
+        <input type="checkbox" id="snap-cb-${i}" checked style="accent-color:var(--text);width:13px;height:13px">
+        <span class="label-tag" style="max-width:120px">${esc(a.label)}</span>
+        <span class="addr-mono" style="flex:1">${a.address.slice(0,10)}…${a.address.slice(-6)}</span>
+        <span style="color:var(--text3)">${scopeLabel(a.scope)}</span>
+      </label>
+    `).join('');
+  } else {
+    el.innerHTML=`
+      <div class="empty" style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:14px 8px">
+        <div>No addresses to snapshot yet</div>
+        <button class="btn small primary" onclick="showTab('addresses')">Go to Address book →</button>
+      </div>`;
+  }
+  updateSnapRunBtnState();
+}
+
+function updateSnapRunBtnState(){
+  const btn=document.getElementById('snap-btn');
+  if(!btn) return;
+  if(btn.dataset.running==='1') return;
+  const d=getData();
+  if(!d.addresses.length){
+    btn.disabled=true;
+    btn.textContent='No addresses to snapshot';
+  } else {
+    btn.disabled=false;
+    btn.textContent='Take snapshot';
+  }
+}
+
+// ── Snapshot date controls ───────────────────────────────────────────────────
+function showSnapDateTab(mode){
+  snapMode = mode;
+  const tabNow = document.getElementById('sdtab-now');
+  const tabHist = document.getElementById('sdtab-hist');
+  const panelNow = document.getElementById('sdpanel-now');
+  const panelHist = document.getElementById('sdpanel-hist');
+  if(mode==='now'){
+    tabNow.style.background='var(--bg)'; tabNow.style.fontWeight='500'; tabNow.style.color='';
+    tabHist.style.background=''; tabHist.style.fontWeight=''; tabHist.style.color='var(--text2)';
+    panelNow.style.display=''; panelHist.style.display='none';
+  } else {
+    tabHist.style.background='var(--bg)'; tabHist.style.fontWeight='500'; tabHist.style.color='';
+    tabNow.style.background=''; tabNow.style.fontWeight=''; tabNow.style.color='var(--text2)';
+    panelNow.style.display='none'; panelHist.style.display='';
+    // set sensible max so user can't pick today/future (block won't be settled / data missing)
+    const yest = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+    const dEl = document.getElementById('snap-date');
+    if(dEl && !dEl.max) dEl.max = yest;
+  }
+}
+
+function onSnapDateChange(){
+  snapHistDate = document.getElementById('snap-date').value || null;
+  resolveSnapBlockDisplay();
+}
+
+function applySnapPreset(kind){
+  const now = new Date();
+  const Y = now.getUTCFullYear(), M = now.getUTCMonth(); // M is 0-11
+  let d;
+  if(kind==='year-end'){
+    // Dec 31 of the previous year
+    d = new Date(Date.UTC(Y - 1, 11, 31));
+  } else if(kind==='q-end'){
+    // last completed quarter-end (Mar 31, Jun 30, Sep 30, Dec 31)
+    // current quarter index 0..3; last completed quarter is currentQ-1 (mod 4)
+    const curQ = Math.floor(M / 3);            // 0,1,2,3
+    if(curQ === 0){
+      d = new Date(Date.UTC(Y - 1, 11, 31));   // Dec 31 of last year
+    } else {
+      const qLast = curQ - 1;
+      const lastMonth = qLast*3 + 2;           // 2, 5, 8
+      const day = (lastMonth===2||lastMonth===11) ? 31 : 30;
+      d = new Date(Date.UTC(Y, lastMonth, day));
+    }
+  } else if(kind==='month-end'){
+    // last day of previous month: day 0 of current month in UTC
+    d = new Date(Date.UTC(Y, M, 0));
+  }
+  document.getElementById('snap-date').value = d.toISOString().slice(0,10);
+  onSnapDateChange();
+}
+
+// timestamp (sec) for end-of-day UTC of a given YYYY-MM-DD
+function endOfDayUtcTs(ymd){
+  return Math.floor(new Date(ymd + 'T23:59:59Z').getTime() / 1000);
+}
+
+async function resolveSnapBlockDisplay(){
+  const el = document.getElementById('snap-block-display');
+  if(!el) return;
+  if(!snapHistDate){ el.textContent=''; return; }
+  const d = getData();
+  if(!d.apiKey){ el.textContent='— save API key to resolve block'; return; }
+  const enabled = (d.enabledChains || []).map(id => CHAINS.find(c => c.id === id)).filter(Boolean);
+  if(!enabled.length){ el.textContent='— no chains enabled'; return; }
+  const ref = enabled.find(c => c.id==='eth') || enabled[0];
+  el.textContent = `resolving ${ref.short} block…`;
+  try{
+    const bn = await getBlockNumber(d.apiKey, ref.chainId, endOfDayUtcTs(snapHistDate));
+    el.textContent = `≈ ${ref.short} block ${bn.toLocaleString()}`;
+  }catch(e){
+    el.textContent = `(block lookup failed: ${e.message})`;
+  }
+}
+
+// ── Balance fetchers ─────────────────────────────────────────────────────────
+async function fetchEthBalance(apiKey, chainId, address){
+  const url=`${API_BASE}?chainid=${chainId}&module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
+  const r=await fetch(url); const j=await r.json();
+  if(j.status==='1') return (BigInt(j.result) * 100000n / BigInt(1e18)) ; // keep 5 decimal places as integer cents
+  return null;
+}
+
+// PRO-only endpoint. Returns null on free key (we'll fall back to current).
+async function fetchEthBalanceAtBlock(apiKey, chainId, address, blockNo){
+  const url=`${API_BASE}?chainid=${chainId}&module=account&action=balancehistory&address=${address}&blockno=${blockNo}&apikey=${apiKey}`;
+  try{
+    const r=await fetch(url); const j=await r.json();
+    if(j.status==='1' && /^[0-9]+$/.test(String(j.result))) {
+      return BigInt(j.result) * 100000n / BigInt(1e18);
+    }
+  }catch{}
+  return null;
+}
+
+async function fetchTokenBalances(apiKey, chainId, address){
+  // addresstokenbalance returns up to 100 tokens
+  const url=`${API_BASE}?chainid=${chainId}&module=account&action=addresstokenbalance&address=${address}&page=1&offset=100&apikey=${apiKey}`;
+  const r=await fetch(url); const j=await r.json();
+  if(j.status==='1') return j.result; // [{TokenAddress, TokenName, TokenSymbol, TokenQuantity, TokenDivisor}]
+  return [];
+}
+
+// Reconstruct token balances at a target block by replaying ERC-20 transfers.
+// Works on the FREE Etherscan tier — uses the `tokentx` endpoint with paging.
+async function fetchHistoricalTokenBalances(apiKey, chainId, address, endBlock){
+  const tokens = new Map(); // contractAddr(lower) -> { meta…, _qty: BigInt }
+  const PAGE_SIZE = 10000;
+  const MAX_PAGES = 5; // hard safety cap → up to ~50k transfers per address/chain
+  let startBlock = 0;
+  const addrLow = address.toLowerCase();
+
+  for(let page=0; page<MAX_PAGES; page++){
+    const url = `${API_BASE}?chainid=${chainId}&module=account&action=tokentx&address=${address}&startblock=${startBlock}&endblock=${endBlock}&page=1&offset=${PAGE_SIZE}&sort=asc&apikey=${apiKey}`;
+    const r = await fetch(url); const j = await r.json();
+    let list;
+    if(j.status==='1') list = j.result || [];
+    else if(j.message==='No transactions found' || j.result==='') list = [];
+    else throw new Error(j.message || j.result || 'tokentx error');
+
+    if(!list.length) break;
+
+    for(const tx of list){
+      const c = (tx.contractAddress || '').toLowerCase();
+      if(!c) continue;
+      if(!tokens.has(c)){
+        tokens.set(c, {
+          TokenAddress: tx.contractAddress,
+          TokenSymbol:  tx.tokenSymbol  || '',
+          TokenName:    tx.tokenName    || '',
+          TokenDivisor: tx.tokenDecimal || '18',
+          _qty: 0n,
+        });
+      }
+      const t = tokens.get(c);
+      let v = 0n;
+      try{ v = BigInt(tx.value || '0'); }catch{ v = 0n; }
+      const fromMe = (tx.from||'').toLowerCase() === addrLow;
+      const toMe   = (tx.to  ||'').toLowerCase() === addrLow;
+      if(toMe)   t._qty += v;
+      if(fromMe) t._qty -= v;
+    }
+
+    if(list.length < PAGE_SIZE) break;
+    // continue from the block after the last seen one (cheap pagination)
+    const lastBlock = parseInt(list[list.length - 1].blockNumber, 10);
+    if(!isFinite(lastBlock) || lastBlock+1 > endBlock) break;
+    startBlock = lastBlock + 1;
+  }
+
+  // Convert to the same shape addresstokenbalance returns; clamp negatives to 0
+  return [...tokens.values()].map(t => {
+    const q = t._qty < 0n ? 0n : t._qty;
+    return {
+      TokenAddress: t.TokenAddress,
+      TokenName:    t.TokenName,
+      TokenSymbol:  t.TokenSymbol,
+      TokenDivisor: t.TokenDivisor,
+      TokenQuantity: q.toString(),
+    };
+  });
+}
+
+function formatBigBalance(quantity, divisor){
+  try{
+    const d=parseInt(divisor)||18;
+    const q=BigInt(quantity||0);
+    const factor=BigInt(10)**BigInt(d);
+    const whole=q/factor;
+    const frac=q%factor;
+    const fracStr=frac.toString().padStart(d,'0').slice(0,6).replace(/0+$/,'');
+    return fracStr ? `${whole}.${fracStr}` : `${whole}`;
+  }catch{ return quantity; }
+}
+
+function formatEthBalance(centiunits){
+  // centiunits = wei * 100000 / 1e18
+  if(centiunits===null||centiunits===undefined) return '?';
+  const s=centiunits.toString().padStart(6,'0');
+  const whole=s.slice(0,-5)||'0';
+  const frac=s.slice(-5).replace(/0+$/,'');
+  return frac ? `${whole}.${frac}` : whole;
+}
+
+async function runSnapshot(){
+  const d=getData();
+  if(!d.apiKey){ alert('Please save your Etherscan API key first.'); return; }
+  const hideZero=document.getElementById('snap-hide-zero').checked;
+  const log=document.getElementById('snap-log');
+  const results_el=document.getElementById('snap-results');
+  log.innerHTML=''; results_el.innerHTML=''; snapData=[];
+
+  const isHist = (snapMode === 'hist');
+  if(isHist && !snapHistDate){
+    log.innerHTML='<div class="status err">Pick a snapshot date first.</div>';
+    return;
+  }
+  snapLastDate = isHist ? snapHistDate : new Date().toISOString().slice(0,10);
+
+  const selected=d.addresses.filter((_,i)=>{ const cb=document.getElementById('snap-cb-'+i); return cb&&cb.checked; });
+  if(!selected.length){ log.innerHTML='<div class="status err">No addresses selected.</div>'; return; }
+
+  const btn=document.getElementById('snap-btn');
+  const dlBtn=document.getElementById('snap-dl-btn');
+  btn.disabled=true; btn.textContent='Fetching…'; btn.dataset.running='1'; dlBtn.style.display='none';
+
+  // progress indicator
+  log.innerHTML=`<div class="card"><div id="snap-progress-label" style="font-size:12px;color:var(--text2);margin-bottom:6px">Starting…</div><div class="progress"><div class="progress-bar" id="snap-pb" style="width:0%"></div></div></div>`;
+
+  const pb=document.getElementById('snap-pb');
+  const plabel=document.getElementById('snap-progress-label');
+
+  const tasks=[];
+  for(const addr of selected){
+    const chains=getEnabledChainsForScope(addr.scope);
+    for(const chain of chains) tasks.push({addr,chain});
+  }
+
+  // In historical mode, resolve the target block once per chain (saves API calls).
+  const blockByChain = {}; // chainId -> blockNo  (or string error message)
+  if(isHist){
+    const ts = endOfDayUtcTs(snapHistDate);
+    const uniqueChains = [...new Set(tasks.map(t=>t.chain.chainId))];
+    for(let i=0;i<uniqueChains.length;i++){
+      const cid = uniqueChains[i];
+      plabel.textContent = `Resolving block for chain ${cid}… (${i+1}/${uniqueChains.length})`;
+      try{
+        blockByChain[cid] = await getBlockNumber(d.apiKey, cid, ts);
+      }catch(e){
+        blockByChain[cid] = { error: e.message };
+      }
+    }
+  }
+
+  for(let i=0;i<tasks.length;i++){
+    const {addr,chain}=tasks[i];
+    pb.style.width=`${Math.round((i/tasks.length)*100)}%`;
+    plabel.textContent=`${addr.label} on ${chain.name}… (${i+1}/${tasks.length})`;
+    const ethNativeSymbol = chain.id==='bsc'?'BNB':chain.id==='poly'?'MATIC':chain.id==='avax'?'AVAX':chain.id==='ftm'?'FTM':'ETH';
+
+    try{
+      let ethCents=null, ethApprox=false, blockNo=null, tokens=[];
+
+      if(isHist){
+        const resolved = blockByChain[chain.chainId];
+        if(resolved == null) throw new Error('block resolve missing for this chain');
+        if(typeof resolved === 'object' && resolved.error) throw new Error('block resolve: '+resolved.error);
+        blockNo = resolved;
+
+        // Try PRO endpoint for native balance; fall back silently to current on free key.
+        ethCents = await fetchEthBalanceAtBlock(d.apiKey, chain.chainId, addr.address, blockNo);
+        if(ethCents == null){
+          ethCents = await fetchEthBalance(d.apiKey, chain.chainId, addr.address);
+          ethApprox = true; // marked as "current" not historical
+        }
+        // Reconstruct token balances from transfer history up to the target block
+        tokens = await fetchHistoricalTokenBalances(d.apiKey, chain.chainId, addr.address, blockNo);
+      } else {
+        const [c, t] = await Promise.all([
+          fetchEthBalance(d.apiKey,chain.chainId,addr.address),
+          fetchTokenBalances(d.apiKey,chain.chainId,addr.address),
+        ]);
+        ethCents = c; tokens = t;
+      }
+
+      const ethFormatted=formatEthBalance(ethCents);
+      const filteredTokens=hideZero ? tokens.filter(t=>t.TokenQuantity!=='0') : tokens;
+      snapData.push({
+        label:addr.label, address:addr.address,
+        chainName:chain.name, chainId:chain.id,
+        ethSymbol:ethNativeSymbol, ethBalance:ethFormatted, ethApprox,
+        blockNo,
+        tokens:filteredTokens,
+      });
+    }catch(e){
+      snapData.push({
+        label:addr.label, address:addr.address,
+        chainName:chain.name, chainId:chain.id,
+        ethSymbol:ethNativeSymbol, ethBalance:'error',
+        tokens:[], error:e.message,
+      });
+    }
+  }
+
+  pb.style.width='100%';
+  plabel.textContent=`Done — ${tasks.length} address/chain combination${tasks.length!==1?'s':''} fetched`;
+  btn.disabled=false; btn.textContent='Take snapshot'; btn.dataset.running='';
+
+  renderSnapResults(hideZero);
+  dlBtn.style.display='';
+}
+
+function renderSnapResults(hideZero){
+  const el=document.getElementById('snap-results');
+  if(!snapData.length){ el.innerHTML=''; return; }
+
+  const dateForLabel = snapLastDate ? new Date(snapLastDate+'T00:00:00Z') : new Date();
+  const snapshotDate = dateForLabel.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});
+  const isHist = snapMode==='hist';
+  const headerSuffix = isHist ? ' (historical, end-of-day UTC)' : '';
+  const anyApprox = snapData.some(s=>s.ethApprox);
+
+  let html=`<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Snapshot as of ${snapshotDate}${headerSuffix}</div>`;
+  if(isHist && anyApprox){
+    html+=`<div class="notice" style="margin-bottom:10px">Native balances marked <em>~approx</em> use the <strong>current</strong> on-chain value because <code>balancehistory</code> requires an Etherscan PRO key. Token balances are accurate (reconstructed from transfer history).</div>`;
+  }
+
+  // group by address
+  const byAddr=new Map();
+  snapData.forEach(s=>{
+    const key=s.label+'||'+s.address;
+    if(!byAddr.has(key)) byAddr.set(key,{label:s.label,address:s.address,chains:[]});
+    byAddr.get(key).chains.push(s);
+  });
+
+  byAddr.forEach(group=>{
+    html+=`<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span class="label-tag">${esc(group.label)}</span>
+        <span class="addr-mono">${group.address}</span>
+      </div>`;
+
+    group.chains.forEach(s=>{
+      const hasData=!s.error&&(s.ethBalance!=='0'||s.tokens.length);
+      const blockBadge = s.blockNo ? `<span style="font-size:11px;color:var(--text3);font-family:'SF Mono','Fira Code',monospace">@ block ${s.blockNo.toLocaleString()}</span>` : '';
+      html+=`<div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span class="chain-tag" style="background:${(CHAINS.find(c=>c.id===s.chainId)||{color:'#888'}).color}20;color:${(CHAINS.find(c=>c.id===s.chainId)||{color:'#888'}).color}">${s.chainName}</span>
+          ${blockBadge}
+          ${s.error?`<span class="status err">${esc(s.error)}</span>`:''}
+        </div>`;
+
+      if(!s.error){
+        html+=`<table class="snap-table"><thead><tr><th>Token</th><th>Name</th><th style="text-align:right">Balance</th></tr></thead><tbody>`;
+        // Native balance row
+        if(!hideZero||s.ethBalance!=='0'){
+          const approxTag = s.ethApprox ? ` <span style="font-size:10px;color:var(--text3);font-style:italic">~approx (current)</span>` : '';
+          html+=`<tr><td><strong>${s.ethSymbol}</strong></td><td style="color:var(--text2)">Native${approxTag}</td><td class="token-bal">${s.ethBalance}</td></tr>`;
+        }
+        // Token rows
+        s.tokens.forEach(t=>{
+          const bal=formatBigBalance(t.TokenQuantity,t.TokenDivisor);
+          html+=`<tr><td><strong>${esc(t.TokenSymbol)}</strong></td><td style="color:var(--text2)">${esc(t.TokenName)}</td><td class="token-bal">${bal}</td></tr>`;
+        });
+        if(!hasData) html+=`<tr><td colspan="3" style="color:var(--text3);text-align:center;padding:8px">No balances</td></tr>`;
+        html+=`</tbody></table>`;
+      }
+      html+=`</div>`;
+    });
+    html+=`</div>`;
+  });
+
+  el.innerHTML=html;
+}
+
+function downloadSnapshot(){
+  if(!snapData.length) return;
+  const snapshotDate = snapLastDate || new Date().toISOString().slice(0,10);
+  const rows=[];
+  snapData.forEach(s=>{
+    // Native row
+    rows.push({
+      _label:s.label, _address:s.address, _chain:s.chainName,
+      token_symbol:s.ethSymbol, token_name:'Native', token_address:'',
+      balance:s.ethBalance, balance_approx: s.ethApprox?'true':'false',
+      block_number: s.blockNo||'',
+      snapshot_date_utc:snapshotDate,
+    });
+    // Token rows
+    s.tokens.forEach(t=>{
+      rows.push({
+        _label:s.label, _address:s.address, _chain:s.chainName,
+        token_symbol:t.TokenSymbol, token_name:t.TokenName, token_address:t.TokenAddress,
+        balance:formatBigBalance(t.TokenQuantity,t.TokenDivisor), balance_approx:'false',
+        block_number: s.blockNo||'',
+        snapshot_date_utc:snapshotDate,
+      });
+    });
+  });
+  if(!rows.length) return;
+  const keys=Object.keys(rows[0]);
+  const lines=[keys.join(','),...rows.map(r=>keys.map(k=>escapeCSV(r[k])).join(','))];
+  triggerDownload(lines.join('\n'),`token_snapshot_${snapshotDate}.csv`);
+}
+
+// ── Enrich export rows with contract classification ───────────────────────────
+// Called inside runExport for txlist only
+function escapeCSV(v){
+  const s=String(v??'').replace(/"/g,'""');
+  return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s}"`:s;
+}
+function buildCSV(rows,extraCols){
+  if(!rows.length) return null;
+  const baseKeys=Object.keys(rows[0]);
+  const allKeys=[...baseKeys,...extraCols.map(e=>e.key)];
+  const lines=rows.map(row=>allKeys.map(k=>{ const ex=extraCols.find(e=>e.key===k); return escapeCSV(ex?ex.val:row[k]); }).join(','));
+  return[allKeys.join(','),...lines].join('\n');
+}
+function triggerDownload(content,filename){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type:'text/csv'}));
+  a.download=filename; a.click();
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Download results ──────────────────────────────────────────────────────────
+function downloadResults(){
+  const withData=results.filter(r=>r.rows.length>0);
+  if(!withData.length) return;
+  if(downloadMode==='separate'){
+    withData.forEach(r=>{
+      triggerDownload(buildCSV(r.rows,[{key:'_label',val:r.label},{key:'_chain',val:r.chainName}]),`${r.label}_${r.chainId}.csv`);
+    });
+  } else if(downloadMode==='per-address'){
+    const groups=new Map();
+    withData.forEach(r=>{ const key=r.label+'||'+r.address; if(!groups.has(key))groups.set(key,{label:r.label,chunks:[]}); groups.get(key).chunks.push(r); });
+    groups.forEach(g=>{
+      const allBaseKeys=[...new Set(g.chunks.flatMap(c=>Object.keys(c.rows[0]||{})))];
+      const lines=[[...allBaseKeys,'_chain'].join(',')];
+      g.chunks.forEach(c=>c.rows.forEach(row=>lines.push([...allBaseKeys.map(k=>escapeCSV(row[k])),escapeCSV(c.chainName)].join(','))));
+      triggerDownload(lines.join('\n'),`${g.label}_all_chains.csv`);
+    });
+  } else {
+    const allBaseKeys=[...new Set(withData.flatMap(r=>Object.keys(r.rows[0]||{})))];
+    const lines=[[...allBaseKeys,'_label','_chain'].join(',')];
+    withData.forEach(r=>r.rows.forEach(row=>lines.push([...allBaseKeys.map(k=>escapeCSV(row[k])),escapeCSV(r.label),escapeCSV(r.chainName)].join(','))));
+    triggerDownload(lines.join('\n'),'multichain_export.csv');
+  }
+}
+
+// ── Run export ────────────────────────────────────────────────────────────────
+async function runExport(){
+  const d=getData();
+  if(!d.apiKey){ alert('Please save your Etherscan API key first (API key tab).'); return; }
+  const action=document.getElementById('exp-type').value;
+  const limit=parseInt(document.getElementById('exp-limit').value);
+  const {startTs,endTs}=getBlockRange();
+  const log=document.getElementById('export-log');
+  log.innerHTML=''; results=[];
+
+  const selected=d.addresses.filter((_,i)=>{ const cb=document.getElementById('exp-cb-'+i); return cb&&cb.checked; });
+  if(!selected.length){log.innerHTML='<div class="status err">No addresses selected.</div>';return;}
+
+  // Build label map once for the whole run — counterparties + own address book
+  const labelMap=buildLabelMap();
+
+  const btn=document.getElementById('run-btn');
+  btn.disabled=true; btn.textContent='Running…'; btn.dataset.running='1';
+
+  for(const addr of selected){
+    const chains=getEnabledChainsForScope(addr.scope);
+    const addrShort=addr.address.slice(0,10)+'…'+addr.address.slice(-6);
+    log.innerHTML+=`
+      <div class="log-addr-header">
+        <span class="label-tag">${esc(addr.label)}</span>
+        <span class="addr-mono">${addrShort}</span>
+        <span style="font-size:11px;color:var(--text3)">${scopeLabel(addr.scope)}</span>
+      </div>`;
+    if(!chains.length){
+      log.innerHTML+=`<div class="log-item"><span class="status err">No enabled chains match this address scope</span></div>`;
+      continue;
+    }
+    for(const chain of chains){
+      const rid=`${addr.address.slice(2,8)}-${chain.id}`;
+      log.innerHTML+=`
+        <div class="log-item" id="row-${rid}">
+          <span class="chain-tag" style="background:${chain.color}20;color:${chain.color}">${chain.short}</span>
+          <span style="font-size:12px;color:var(--text2);flex:1">${chain.name}</span>
+          <span style="font-size:11px;color:var(--text3);margin-right:4px">chain ${chain.chainId}</span>
+          <span class="status" id="st-${rid}">resolving blocks…</span>
+        </div>
+        <div class="progress" style="margin-left:8px"><div class="progress-bar" id="pb-${rid}" style="width:15%"></div></div>`;
+      const st=document.getElementById('st-'+rid);
+      const pb=document.getElementById('pb-'+rid);
+      try{
+        let startBlock=null,endBlock=null;
+        if(startTs) startBlock=await getBlockNumber(d.apiKey,chain.chainId,startTs);
+        if(endTs)   endBlock=await getBlockNumber(d.apiKey,chain.chainId,endTs);
+        pb.style.width='40%'; st.textContent='fetching…';
+        const rows=await fetchTxs(d.apiKey,chain.chainId,addr.address,action,limit,startBlock,endBlock);
+        pb.style.width='100%';
+        // Pipeline:
+        //   1. UTC date columns (all action types have timeStamp)
+        //   2. Counterparty / own-wallet labels next to from/to/contractAddress
+        //   3. Contract-classification columns for normal txs only
+        let enriched = enrichRowsWithDates(rows);
+        enriched = enrichRowsWithLabels(enriched, labelMap);
+        if(action==='txlist') enriched = enrichRows(enriched);
+        results.push({label:addr.label,address:addr.address,chainId:chain.id,chainName:chain.name,rows:enriched});
+        if(rows.length){ st.textContent=`${rows.length.toLocaleString()} rows`; st.className='status ok'; }
+        else { st.textContent='no data'; st.className='status'; }
+      }catch(e){
+        pb.style.width='100%'; pb.style.background='var(--danger-text)';
+        st.textContent=e.message; st.className='status err';
+        results.push({label:addr.label,address:addr.address,chainId:chain.id,chainName:chain.name,rows:[]});
+      }
+    }
+  }
+
+  btn.disabled=false; btn.textContent='Run export'; btn.dataset.running='';
+  const total=results.reduce((s,r)=>s+r.rows.length,0);
+  if(total>0){
+    const modeLabel=downloadMode==='separate'?`${results.filter(r=>r.rows.length).length} file(s)`:downloadMode==='per-address'?'one file per address':'one combined file';
+    log.innerHTML+=`
+      <div style="margin-top:14px;padding-top:12px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span class="status ok">${total.toLocaleString()} total rows</span>
+        <button class="btn primary" onclick="downloadResults()">Download — ${modeLabel}</button>
+      </div>`;
+  } else {
+    log.innerHTML+='<div class="status" style="margin-top:8px">Nothing to download.</div>';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderKeyTab();
+renderAddresses();
+renderCounterparties();
+renderChainScopeSelects();
+renderPresets();
+applyPreset('all');
+showAddTab('single');
+showCpTab('single');
+// pre-render snapshot addr list for when tab is opened
+setTimeout(()=>{ const el=document.getElementById('snap-addr-list'); if(el) renderSnapAddrList(); },0);
+</script>
+</body>
+</html>
