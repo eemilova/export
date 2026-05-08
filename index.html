@@ -316,21 +316,35 @@
     <div class="card" style="margin-bottom:12px">
       <div class="grid2" style="margin-bottom:14px">
         <div>
-          <div class="field-label">Data type</div>
-          <select id="exp-type">
-            <option value="tokentx">ERC-20 token transfers</option>
-            <option value="txlist">Normal transactions</option>
-            <option value="txlistinternal">Internal transactions</option>
-            <option value="tokennfttx">ERC-721 NFT transfers</option>
-            <option value="token1155tx">ERC-1155 transfers</option>
-          </select>
+          <div class="field-label">Data types</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.3">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="exp-type-txlist" checked style="accent-color:var(--text);width:13px;height:13px"> Normal transactions
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="exp-type-txlistinternal" checked style="accent-color:var(--text);width:13px;height:13px"> Internal transactions
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="exp-type-tokentx" checked style="accent-color:var(--text);width:13px;height:13px"> ERC-20 token transfers
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="exp-type-tokennfttx" style="accent-color:var(--text);width:13px;height:13px"> ERC-721 NFT transfers
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="exp-type-token1155tx" style="accent-color:var(--text);width:13px;height:13px"> ERC-1155 transfers
+            </label>
+          </div>
         </div>
         <div>
-          <div class="field-label">Max records per address / chain</div>
+          <div class="field-label">Limit per address / chain</div>
           <select id="exp-limit">
+            <option value="0" selected>All (recommended)</option>
             <option value="1000">1,000</option>
             <option value="5000">5,000</option>
             <option value="10000">10,000</option>
+            <option value="25000">25,000</option>
+            <option value="50000">50,000</option>
+            <option value="100000">100,000</option>
           </select>
         </div>
       </div>
@@ -342,6 +356,18 @@
         <input type="date" id="date-to" onchange="onDateChange()" style="flex:1">
       </div>
       <div class="range-summary" id="range-summary"></div>
+      <div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:6px;border:1px solid var(--border)">
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="exp-filter-spam" checked style="accent-color:var(--text);margin-top:2px;flex-shrink:0">
+          <span>
+            <strong>Filter spam / address poisoning</strong>
+            <span style="display:block;color:var(--text3);font-size:12px;margin-top:2px">
+              Drops zero-value ERC-20 and ERC-1155 transfers, which are nearly always
+              poisoning attempts. Has no effect on normal transactions or NFT transfers.
+            </span>
+          </span>
+        </label>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom:12px">
@@ -437,38 +463,32 @@ const API_BASE = 'https://api.etherscan.io/v2/api';
 const CHAINS = [
   { id:'eth',       name:'Ethereum',          chainId:1,      color:'#627eea', short:'ETH'    },
   { id:'op',        name:'Optimism',           chainId:10,     color:'#ff0420', short:'OP'     },
-  { id:'flare',     name:'Flare',              chainId:14,     color:'#e8312e', short:'FLR'    },
-  { id:'rsk',       name:'Rootstock',          chainId:30,     color:'#ff9900', short:'RSK'    },
-  { id:'telos',     name:'Telos',              chainId:40,     color:'#571aff', short:'TLOS'   },
   { id:'bsc',       name:'BNB Smart Chain',    chainId:56,     color:'#f0b90b', short:'BSC'    },
   { id:'gnosis',    name:'Gnosis',             chainId:100,    color:'#04795b', short:'GNO'    },
-  { id:'fuse',      name:'Fuse',               chainId:122,    color:'#b5ec57', short:'FUSE'   },
-  { id:'heco',      name:'Huobi ECO',          chainId:128,    color:'#01943f', short:'HECO'   },
+  { id:'unichain',  name:'Unichain',           chainId:130,    color:'#ff007a', short:'UNI'    },
   { id:'poly',      name:'Polygon',            chainId:137,    color:'#8247e5', short:'MATIC'  },
-  { id:'manta',     name:'Manta Pacific',      chainId:169,    color:'#000000', short:'MANTA'  },
-  { id:'ftm',       name:'Fantom',             chainId:250,    color:'#1969ff', short:'FTM'    },
-  { id:'boba',      name:'Boba Network',       chainId:288,    color:'#cbff00', short:'BOBA'   },
-  { id:'kcc',       name:'KCC',                chainId:321,    color:'#23af91', short:'KCC'    },
-  { id:'zksync',    name:'zkSync Era',         chainId:324,    color:'#4e529a', short:'ZKS'    },
+  { id:'sonic',     name:'Sonic',              chainId:146,    color:'#fe9a4c', short:'S'      },
+  { id:'wc',        name:'World Chain',        chainId:480,    color:'#000000', short:'WLD'    },
+  { id:'hyperevm',  name:'HyperEVM',           chainId:999,    color:'#00a3ff', short:'HYPE'   },
+  { id:'moonbeam',  name:'Moonbeam',           chainId:1284,   color:'#53cbc8', short:'GLMR'   },
+  { id:'moonriver', name:'Moonriver',          chainId:1285,   color:'#f2a007', short:'MOVR'   },
+  { id:'mantle',    name:'Mantle',             chainId:5000,   color:'#000000', short:'MNT'    },
+  { id:'base',      name:'Base',               chainId:8453,   color:'#0052ff', short:'BASE'   },
+  { id:'arb',       name:'Arbitrum One',       chainId:42161,  color:'#28a0f0', short:'ARB'    },
   { id:'celo',      name:'Celo',               chainId:42220,  color:'#35d07f', short:'CELO'   },
   { id:'avax',      name:'Avalanche C-Chain',  chainId:43114,  color:'#e84142', short:'AVAX'   },
   { id:'linea',     name:'Linea',              chainId:59144,  color:'#61dfff', short:'LINEA'  },
-  { id:'base',      name:'Base',               chainId:8453,   color:'#0052ff', short:'BASE'   },
-  { id:'arb',       name:'Arbitrum One',       chainId:42161,  color:'#28a0f0', short:'ARB'    },
-  { id:'arbno',     name:'Arbitrum Nova',      chainId:42170,  color:'#e57310', short:'ARBN'   },
-  { id:'cro',       name:'Cronos',             chainId:25,     color:'#002d74', short:'CRO'    },
-  { id:'moonbeam',  name:'Moonbeam',           chainId:1284,   color:'#53cbc8', short:'GLMR'   },
-  { id:'moonriver', name:'Moonriver',          chainId:1285,   color:'#f2a007', short:'MOVR'   },
-  { id:'metis',     name:'Metis',              chainId:1088,   color:'#00dacc', short:'METIS'  },
   { id:'blast',     name:'Blast',              chainId:81457,  color:'#fcfc03', short:'BLAST'  },
-  { id:'scroll',    name:'Scroll',             chainId:534352, color:'#eeb878', short:'SCROLL' },
-  { id:'mantle',    name:'Mantle',             chainId:5000,   color:'#000000', short:'MNT'    },
-  { id:'hyperevm',  name:'HyperEVM',           chainId:999,    color:'#00a3ff', short:'HYPE'   },
   { id:'taiko',     name:'Taiko',              chainId:167000, color:'#e91898', short:'TAIKO'  },
-  { id:'wc',        name:'World Chain',        chainId:480,    color:'#000000', short:'WLD'    },
-  { id:'unichain',  name:'Unichain',           chainId:1301,   color:'#ff007a', short:'UNI'    },
-  { id:'ink',       name:'Ink',                chainId:57073,  color:'#6200ff', short:'INK'    },
-  { id:'soneium',   name:'Soneium',            chainId:1868,   color:'#000000', short:'SONE'   },
+  { id:'scroll',    name:'Scroll',             chainId:534352, color:'#eeb878', short:'SCROLL' },
+  // Removed (Nov 2026): chains not present in Etherscan V2's supported chainlist
+  // (https://api.etherscan.io/v2/chainlist). Keeping them only produced
+  // "Missing or unsupported chainid parameter" errors. Removed: Flare,
+  // Rootstock, Telos, Fuse, Heco, Manta Pacific, Fantom, Boba, KCC, zkSync Era,
+  // Arbitrum Nova, Cronos, Metis, Ink, Soneium. If any are re-added to
+  // Etherscan V2 in the future, just append them back here.
+  // Fantom (250) is permanently gone — the network rebranded to Sonic (146)
+  // which is now supported by Etherscan V2 and added above.
 ];
 
 // All preset boundaries are computed in UTC so that the date range matches
@@ -1395,7 +1415,43 @@ async function getBlockNumber(apiKey, chainId, ts){
   }
   // Surface the API's own message so users see "rate limit", "invalid key", or
   // "chain not supported" instead of silently falling through to "all time".
-  throw new Error(j.message || j.result || 'block lookup failed');
+  throw new Error(j.result || j.message || 'block lookup failed');
+}
+
+// ── Etherscan API request layer ──────────────────────────────────────────────
+// Etherscan's per-second rate limit is 5 req/s on Ethereum and most chains, but
+// 3 req/s on a few (Mantle, HyperEVM, …). The paginating fetchers below can
+// burst well past either limit on a fast connection. We solve this with two
+// layers:
+//   1. THROTTLE_MS — minimum gap between successive calls. 250ms keeps us at
+//      ≤4 RPS, comfortably under 5/sec. For 3/sec chains, the second layer
+//      handles whatever slips through.
+//   2. RETRY_BACKOFF — when Etherscan returns "Max calls per sec rate limit
+//      reached", sleep and retry. Doesn't retry on daily-quota / API-key /
+//      unsupported-chain errors because retrying won't help and would just
+//      burn calls.
+const ETHERSCAN_THROTTLE_MS = 250;
+const ETHERSCAN_RETRY_BACKOFF = [1000, 2500, 5000];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function etherscanFetch(url){
+  await sleep(ETHERSCAN_THROTTLE_MS);
+  for(let attempt = 0; attempt <= ETHERSCAN_RETRY_BACKOFF.length; attempt++){
+    const r = await fetch(url);
+    const j = await r.json();
+    if(j.status === '1') return j;
+    const reason = String(j.result || j.message || '');
+    // "Max calls per sec rate limit reached" → transient, retry.
+    // "Max calls per day reached" → permanent for today, do NOT retry.
+    const isPerSecondRateLimit = /rate limit reached/i.test(reason) && !/daily|per day/i.test(reason);
+    if(isPerSecondRateLimit && attempt < ETHERSCAN_RETRY_BACKOFF.length){
+      await sleep(ETHERSCAN_RETRY_BACKOFF[attempt]);
+      continue;
+    }
+    return j; // pass through (no transactions found / error / etc.)
+  }
+  // Unreachable in practice, but defensive: surface what happened.
+  throw new Error('Etherscan rate-limit retries exhausted');
 }
 
 async function fetchTxs(apiKey, chainId, address, action, offset, startBlock, endBlock){
@@ -1403,7 +1459,78 @@ async function fetchTxs(apiKey, chainId, address, action, offset, startBlock, en
   const r=await fetch(url); const j=await r.json();
   if(j.status==='1') return j.result;
   if(j.message==='No transactions found') return [];
-  throw new Error(j.message||j.result||'API error');
+  throw new Error(j.result || j.message || 'API error');
+}
+
+// Paginating fetch that walks block ranges to assemble more rows than fit in
+// a single API response. Etherscan caps each call at 10,000 results today
+// (and is moving toward 1,000), and `page × offset` can't cross 10,000 — so
+// for larger datasets you have to slice by block range instead of paging.
+//
+// Strategy: sort desc (newest → oldest, matches current UX), and after each
+// page set endblock = the oldest block we just received so the next call
+// continues from there. Dedupe by tx hash because the boundary block gets
+// re-fetched on each step. If a single page comes back with only duplicates
+// (i.e. one block holds more txs than fit in a page — extremely rare for a
+// single address), step the cursor back by one block to avoid an infinite
+// loop, accepting the data loss for that one packed block.
+//
+// PAGE_SIZE is set to 1,000 to be future-compatible with the upcoming
+// Etherscan API limit. SAFETY_PAGES caps the total number of HTTP calls so
+// a runaway loop can't burn through the API quota.
+async function fetchAllTxs(apiKey, chainId, address, action, totalLimit, startBlock, endBlock, onProgress){
+  const PAGE_SIZE = 1000;
+  const SAFETY_PAGES = 200; // 200 × 1000 = 200k absolute upper bound
+  const out = [];
+  const seen = new Set();
+  const lowerBound = startBlock ?? 0;
+  let curEnd = endBlock ?? 99999999;
+  let pages = 0;
+
+  while(out.length < totalLimit && pages < SAFETY_PAGES){
+    pages++;
+    const remaining = totalLimit - out.length;
+    const pageSize = Math.min(PAGE_SIZE, remaining);
+    const url = `${API_BASE}?chainid=${chainId}&module=account&action=${action}&address=${address}&startblock=${lowerBound}&endblock=${curEnd}&page=1&offset=${pageSize}&sort=desc&apikey=${apiKey}`;
+    const j = await etherscanFetch(url);
+    let list;
+    if(j.status === '1') list = j.result || [];
+    else if(j.message === 'No transactions found' || j.result === '') list = [];
+    // Etherscan's failure shape is `{status:"0", message:"NOTOK", result:"<actual reason>"}`.
+    // Always prefer `result` for the error text — `message` is just a yes/no flag.
+    else throw new Error(j.result || j.message || 'API error');
+
+    if(!list.length) break;
+
+    let added = 0;
+    for(const tx of list){
+      const key = tx.hash || `${tx.blockNumber}-${tx.transactionIndex}-${tx.from}-${tx.to}-${tx.value}`;
+      if(seen.has(key)) continue;
+      seen.add(key);
+      out.push(tx);
+      added++;
+      if(out.length >= totalLimit) break;
+    }
+
+    if(onProgress) onProgress(out.length, totalLimit);
+
+    // Last page (got fewer than we asked for) → done
+    if(list.length < pageSize) break;
+
+    // Advance cursor: oldest block in this page becomes the new ceiling.
+    const lastBlock = parseInt(list[list.length - 1].blockNumber, 10);
+    if(!isFinite(lastBlock) || lastBlock < lowerBound) break;
+    curEnd = lastBlock;
+
+    // If everything on this page was a duplicate, we're stuck on a block
+    // boundary that contains more txs than the page size. Step past it.
+    if(added === 0){
+      curEnd = lastBlock - 1;
+      if(curEnd < lowerBound) break;
+    }
+  }
+
+  return out;
 }
 
 // ── Contract interaction classification ──────────────────────────────────────
@@ -1457,6 +1584,25 @@ const KNOWN_SELECTORS = {
   // and most staking contracts (unstake). Without a per-contract lookup we can't disambiguate,
   // so we label it neutrally and let the user resolve from the contract address column.
   '2e1a7d4d': { fn:'withdraw(uint256)',   cat:'Withdraw',    acct:'Withdraw / Unwrap'    },
+  // Aggregators
+  '12aa3caf': { fn:'swap() [1inch]',      cat:'Swap',        acct:'Trading'              },
+  'e449022e': { fn:'uniswapV3Swap() [1inch]', cat:'Swap',    acct:'Trading'              },
+  '0502b1c5': { fn:'unoswap() [1inch]',   cat:'Swap',        acct:'Trading'              },
+  '415565b0': { fn:'transformERC20() [0x]',   cat:'Swap',    acct:'Trading'              },
+  // Curve
+  '3df02124': { fn:'exchange() [Curve]',  cat:'Swap',        acct:'Trading'              },
+  'a6417ed6': { fn:'exchange_underlying() [Curve]', cat:'Swap', acct:'Trading'           },
+  // Permits / generic token ops
+  'd505accf': { fn:'permit() [EIP-2612]', cat:'Approval',    acct:'Contract Interaction' },
+  '40c10f19': { fn:'mint()',              cat:'Mint',        acct:'Token Mint/Burn'      },
+  '42966c68': { fn:'burn()',              cat:'Burn',        acct:'Token Mint/Burn'      },
+  // NFT marketplace (OpenSea Seaport)
+  'fb0f3ee1': { fn:'fulfillBasicOrder() [Seaport]', cat:'NFT Trade', acct:'NFT Trade'    },
+  'b3a34c4c': { fn:'fulfillOrder() [Seaport]',      cat:'NFT Trade', acct:'NFT Trade'    },
+  'ed98a574': { fn:'fulfillAvailableOrders() [Seaport]', cat:'NFT Trade', acct:'NFT Trade' },
+  'f242432a': { fn:'safeTransferFrom() [ERC-1155]', cat:'NFT Transfer', acct:'NFT Transfer' },
+  // Multicall (Uniswap router style)
+  '5ae401dc': { fn:'multicall(uint256,bytes[])', cat:'Multicall', acct:'Trading'         },
 };
 
 const CAT_COLORS = {
@@ -1476,19 +1622,102 @@ const CAT_COLORS = {
   'Contract':  { bg:'#f0f0f0', fg:'#444444' },
 };
 
-function classifyInput(input){
-  if(!input || input==='0x' || input==='0x0') return { selector:'', fn:'ETH Transfer', cat:'Transfer', acct:'ETH Transfer' };
-  const selector=(input.startsWith('0x')?input.slice(2):input).slice(0,8).toLowerCase();
+// Pattern-based categorisation of a resolved function name. Used when the
+// 4-byte selector isn't in KNOWN_SELECTORS but Etherscan resolved the name
+// (or we resolve it via some other source). Catches the long tail of
+// protocol-specific contracts that aren't worth hardcoding selector-by-selector.
+//
+// Order matters: more-specific patterns must come before more-general ones
+// (e.g. "removeLiquidity" before "remove…", "addLiquidity" before "add…").
+// Matches are run against the lowercased name, so camelCase becomes flat
+// ("stakeFor" → "stakefor"). We deliberately do NOT use \b after prefixes,
+// because \b doesn't fire on lowercase-letter boundaries — that would miss
+// every camelCase variant ("stakefor" wouldn't match /^stake\b/). The cost
+// is occasional false positives like "staked" matching ^stake; we live with
+// it because Solidity function names rarely use those forms as verbs.
+//
+// Returns null if nothing matches — caller falls back to "Contract Interaction".
+function categorizeFunctionName(name){
+  if(!name) return null;
+  const n = String(name).toLowerCase();
+  // Liquidity ops must come before the generic /^(add|remove)/ would, if added
+  if(/^addliquidity/.test(n))                                        return { cat:'Liquidity',    acct:'DeFi - LP Add'        };
+  if(/^removeliquidity/.test(n))                                     return { cat:'Liquidity',    acct:'DeFi - LP Remove'     };
+  if(/^swap|^exchange|^trade/.test(n))                               return { cat:'Swap',         acct:'Trading'              };
+  if(/^claim|^getreward|^harvest|^collectreward/.test(n))            return { cat:'Reward',       acct:'Income - Reward'      };
+  // Unstake before Stake (otherwise "unstake" would match /^stake/ — wait,
+  // it wouldn't, since /^stake/ requires the string to *start* with "stake",
+  // and "unstake" starts with "u". But ordering this way is safer if someone
+  // ever loosens the anchor.)
+  if(/^unstake|^exit/.test(n))                                       return { cat:'Staking',      acct:'DeFi - Unstake'       };
+  if(/^stake|^restake/.test(n))                                      return { cat:'Staking',      acct:'DeFi - Stake'         };
+  if(/^supply|^lend/.test(n))                                        return { cat:'Lending',      acct:'DeFi - Deposit'       };
+  if(/^borrow/.test(n))                                              return { cat:'Lending',      acct:'DeFi - Borrow'        };
+  if(/^repay/.test(n))                                               return { cat:'Lending',      acct:'DeFi - Repay'         };
+  if(/^bridge|^relay|^sendfrom|^crosschain|^xtransfer|^xcall/.test(n)) return { cat:'Bridge',     acct:'Bridge'               };
+  if(/^fulfill.*order|^matchorder|^acceptoffer|^buyorder/.test(n))   return { cat:'NFT Trade',    acct:'NFT Trade'            };
+  if(/^setapprovalforall/.test(n))                                   return { cat:'NFT Approval', acct:'Contract Interaction' };
+  if(/^approve|^permit/.test(n))                                     return { cat:'Approval',     acct:'Contract Interaction' };
+  // transferOwnership is an admin function, NOT a token transfer. Deny it
+  // explicitly so it falls through to the generic "Contract Interaction".
+  if(/^transferownership/.test(n))                                   return null;
+  if(/^transfer/.test(n))                                            return { cat:'Transfer',     acct:'Token Transfer'       };
+  if(/^withdraw|^redeem/.test(n))                                    return { cat:'Withdraw',     acct:'Withdraw / Unwrap'    };
+  if(/^unwrap/.test(n))                                              return { cat:'Unwrap',       acct:'Token Wrap/Unwrap'    };
+  // "deposit" without arg-type info usually means WETH wrap or pool deposit.
+  // We lean toward the more common DeFi interpretation.
+  if(/^deposit|^wrap/.test(n))                                       return { cat:'Wrap',         acct:'Token Wrap/Unwrap'    };
+  if(/^mint/.test(n))                                                return { cat:'Mint',         acct:'Token Mint/Burn'      };
+  if(/^burn/.test(n))                                                return { cat:'Burn',         acct:'Token Mint/Burn'      };
+  if(/^multicall|^aggregate|^batch/.test(n))                         return { cat:'Multicall',    acct:'Trading'              };
+  return null;
+}
+
+function classifyInput(input, functionName){
+  // Empty / 0x input means a plain native-coin transfer (no contract call).
+  if(!input || input==='0x' || input==='0x0') return { selector:'', fn:'Native Transfer', cat:'Transfer', acct:'Native Transfer' };
+  // Some legacy Etherscan token-tx responses put a literal "deprecated" string
+  // in the input field instead of hex calldata. Without this guard we'd emit
+  // a bogus selector like "0xdeprecat" and pollute the export. If we have a
+  // resolved functionName, still use it; otherwise leave classification blank.
+  if(!/^0x[0-9a-f]+$/i.test(input)){
+    if(functionName){
+      const m = String(functionName).match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+      const cleanName = m ? `${m[1]}()` : String(functionName);
+      const guessed = categorizeFunctionName(m ? m[1] : functionName);
+      if(guessed) return { selector:'', fn:cleanName, ...guessed };
+      return { selector:'', fn:cleanName, cat:'Contract', acct:'Contract Interaction' };
+    }
+    return { selector:'', fn:'', cat:'', acct:'' };
+  }
+  const selector=input.slice(2,10).toLowerCase();
   const known=KNOWN_SELECTORS[selector];
   if(known) return { selector:'0x'+selector, ...known };
+  // Fallback: Etherscan often resolves the function signature itself for
+  // verified contracts and returns it on the row as `functionName` (e.g.
+  // "swap(uint256 amountIn, address[] path, ...)"). Use it for the label
+  // AND run pattern matching to assign a real category instead of dumping
+  // everything into "Contract Interaction".
+  if(functionName){
+    const m = String(functionName).match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+    const cleanName = m ? `${m[1]}()` : String(functionName);
+    const guessed = categorizeFunctionName(m ? m[1] : functionName);
+    if(guessed) return { selector:'0x'+selector, fn:cleanName, ...guessed };
+    return { selector:'0x'+selector, fn:cleanName, cat:'Contract', acct:'Contract Interaction' };
+  }
   return { selector:'0x'+selector, fn:'Unknown ('+selector+')', cat:'Contract', acct:'Contract Interaction' };
 }
 
 function enrichRows(rows){
-  // Only applies to txlist (normal transactions) — they have an `input` field
+  // Applies to any action type whose rows carry an `input` field. Etherscan
+  // returns the parent transaction's calldata on `txlist`, `txlistinternal`
+  // AND `tokentx` rows, so a token transfer row will surface "this transfer
+  // happened as part of a swapExactTokensForTokens() call". Rows with no
+  // input field at all (rare — some token endpoints) get empty columns so
+  // the CSV header stays consistent.
   return rows.map(row=>{
     if(row.input===undefined) return {...row, _selector:'', _fn:'', _category:'', _acct_category:''};
-    const c=classifyInput(row.input);
+    const c=classifyInput(row.input, row.functionName);
     return {...row, _selector:c.selector, _fn:c.fn, _category:c.cat, _acct_category:c.acct};
   });
 }
@@ -1517,6 +1746,168 @@ function enrichRowsWithDates(rows){
     for(const [k,v] of Object.entries(r)){
       out[k]=v;
       if(k==='timeStamp'){ out.datetime_utc=parts.datetime_utc; out.date_utc=parts.date_utc; }
+    }
+    return out;
+  });
+}
+
+// ── Human-readable value enrichment ──────────────────────────────────────────
+// Etherscan returns `value` and `gasPrice` as raw integer strings in the
+// smallest unit (wei for native, base units for tokens). Spreadsheets render
+// these as scientific notation (e.g. "1E+18", "8.1929E+22"), which is useless
+// for accounting. This step adds decimal-formatted sibling columns next to the
+// raw ones so the export is immediately readable, while keeping the originals
+// for auditing / precision.
+//
+//   value          1000000000000000000      → value_decimal    1.0
+//   gasPrice       21500000000              → gasPrice_gwei    21.5
+//   (txlist only)  gasUsed × gasPrice       → tx_fee_native    0.0004515
+//
+// Divisor logic per action:
+//   txlist / txlistinternal → 18 (native chain coin: ETH, MATIC, BNB, AVAX, …)
+//   tokentx                 → row.tokenDecimal (per-token, ERC-20)
+//   token1155tx             → 0 (Etherscan does not return decimals for 1155;
+//                                tokenValue is the raw transferred count)
+//   tokennfttx              → no `value` field, nothing to format
+function formatUnits(value, decimals){
+  if(value===undefined||value===null||value==='') return '';
+  let q;
+  try{ q = BigInt(value); }
+  catch{ return String(value); }
+  const d = parseInt(decimals);
+  if(!Number.isFinite(d) || d < 0) return q.toString();
+  if(d === 0) return q.toString();
+  const negative = q < 0n;
+  const abs = negative ? -q : q;
+  const factor = 10n ** BigInt(d);
+  const whole = abs / factor;
+  const frac  = abs % factor;
+  // Trim trailing zeros from the fractional part, but always keep at least
+  // one digit after the decimal point so the value is unambiguously a
+  // decimal (e.g. "1.0" not "1") — accounting tools handle this better.
+  let fracStr = frac.toString().padStart(d, '0').replace(/0+$/, '');
+  if(!fracStr) fracStr = '0';
+  return `${negative ? '-' : ''}${whole.toString()}.${fracStr}`;
+}
+
+function enrichRowsWithFormattedValues(rows, action){
+  if(!rows.length) return rows;
+  const nativeActions = new Set(['txlist','txlistinternal']);
+  return rows.map(r=>{
+    const out = {};
+    for(const [k,v] of Object.entries(r)){
+      out[k] = v;
+      // Skip NFT rows entirely — Etherscan's tokennfttx response sometimes
+      // includes a `value` field set to "0" or "1" alongside tokenID, but it
+      // has no fungible-amount semantics. Formatting it would emit nonsense
+      // like "0.000000000000000001" for a 1-of-1 transfer.
+      if(k === 'value' && action !== 'tokennfttx'){
+        let decimals = 18;
+        if(action === 'tokentx'){
+          // Use Number.isFinite — `parseInt('0') || 18` would incorrectly
+          // coerce a real 0-decimals token (some governance / legacy tokens)
+          // to 18 decimals, off-by-18-orders-of-magnitude bug.
+          const d = parseInt(r.tokenDecimal);
+          decimals = Number.isFinite(d) ? d : 18;
+        } else if(action === 'token1155tx'){
+          decimals = 0;
+        } else if(!nativeActions.has(action)){
+          decimals = 18;
+        }
+        out.value_decimal = formatUnits(v, decimals);
+      } else if(k === 'gasPrice'){
+        out.gasPrice_gwei = formatUnits(v, 9);
+      } else if(k === 'gasUsed' && action === 'txlist'){
+        // gasUsed × gasPrice gives the actual fee paid in native coin (wei).
+        // gasPrice may already have been emitted above; we still have the
+        // raw value on the source row.
+        try{
+          const fee = BigInt(v||'0') * BigInt(r.gasPrice||'0');
+          out.tx_fee_native = formatUnits(fee.toString(), 18);
+        }catch{ out.tx_fee_native = ''; }
+      }
+    }
+    return out;
+  });
+}
+
+// ── Spam / address-poisoning filter ──────────────────────────────────────────
+// Address poisoning works by emitting fake `Transfer` events that make a
+// lookalike address appear in your wallet history. The attack vectors:
+//   1. Attacker calls transferFrom(yourAddr, lookalike, 0) on some ERC-20 —
+//      the token contract emits Transfer(you, lookalike, 0), Etherscan parses
+//      this into a tokentx row showing YOU as sender even though you didn't
+//      sign anything.
+//   2. Attacker sends 0 of a fake token TO your address to plant a lookalike
+//      in your inbound history.
+// In both cases the row carries `value === '0'`. Real token movements
+// effectively never have zero value (approvals don't show up in tokentx —
+// they emit Approval events, not Transfer). So a zero-value drop on
+// tokentx + token1155tx is high-precision and catches the bulk of poisoning.
+//
+// What this WON'T catch (mentioned for completeness):
+//   • Dust spam (1 wei of a fake token) — non-zero, slips through
+//   • Fake-symbol tokens (e.g. fake "USDC" with non-zero value)
+//   • NFT spam airdrops — value semantics differ, needs a collection blocklist
+//   • Lookalike-address detection on legit-value txs — needs cross-row analysis
+//
+// txlist / txlistinternal are deliberately untouched: zero-value normal txs
+// are usually contract interactions like approve() or method calls, not spam.
+function filterSpam(rows, action){
+  if(action !== 'tokentx' && action !== 'token1155tx') return { rows, dropped: 0 };
+  let dropped = 0;
+  const kept = rows.filter(r => {
+    const v = action === 'token1155tx' ? r.tokenValue : r.value;
+    // KEEP rows where the value field is missing entirely. A schema change
+    // upstream (Etherscan removing/renaming the field) shouldn't silently
+    // delete every row in the export — that's a much worse failure mode
+    // than letting some unknowns through. Only drop when we can actively
+    // confirm the value is zero.
+    if(v === undefined || v === null || v === '') return true;
+    try {
+      if(BigInt(v) === 0n){ dropped++; return false; }
+    } catch { /* unparseable value — keep, don't pretend to know */ }
+    return true;
+  });
+  return { rows: kept, dropped };
+}
+
+// ── Column stripping ─────────────────────────────────────────────────────────
+// Columns to drop from every CSV before download. These are low-value
+// metadata that bloat the spreadsheet for accounting purposes.
+//
+// `tx_fee_native` (added during value enrichment) is intentionally KEPT —
+// it's the only useful gas number for accounting (the actual fee paid).
+//
+// `timeStamp` (raw unix seconds) is safe to strip because the pipeline has
+// already converted it into `datetime_utc` and `date_utc` by the time
+// stripColumns runs. Same applies to `gasPrice` → `gasPrice_gwei` (also
+// dropped) and to gas internals → `tx_fee_native` (kept).
+const EXCLUDED_COLUMNS = [
+  // gas internals
+  'transactionIndex',
+  'gas',
+  'gasPrice',
+  'gasPrice_gwei',
+  'gasUsed',
+  'cumulativeGasUsed',
+  // block/position metadata
+  'blockNumber',
+  'blockHash',
+  'timeStamp',
+  'nonce',
+  'confirmations',
+  // NB: `hash` is KEPT — universal primary key for joining against exchange
+  // exports, tax tools, and explorer lookups for audit trail.
+];
+
+function stripColumns(rows, excluded){
+  if(!rows.length) return rows;
+  const drop = new Set(excluded);
+  return rows.map(r=>{
+    const out={};
+    for(const [k,v] of Object.entries(r)){
+      if(!drop.has(k)) out[k]=v;
     }
     return out;
   });
@@ -1662,29 +2053,38 @@ async function fetchEthBalanceAtBlock(apiKey, chainId, address, blockNo){
 }
 
 async function fetchTokenBalances(apiKey, chainId, address){
-  // addresstokenbalance returns up to 100 tokens
+  // Primary: PRO endpoint `addresstokenbalance` — one call, fast, includes
+  // current USD prices alongside quantities. Available on Standard plan+,
+  // throttled to 2 calls/sec.
   const url=`${API_BASE}?chainid=${chainId}&module=account&action=addresstokenbalance&address=${address}&page=1&offset=100&apikey=${apiKey}`;
-  const r=await fetch(url); const j=await r.json();
-  if(j.status==='1') return j.result; // [{TokenAddress, TokenName, TokenSymbol, TokenQuantity, TokenDivisor}]
-  return [];
+  const j = await etherscanFetch(url);
+  if(j.status==='1') return j.result; // [{TokenAddress, TokenName, TokenSymbol, TokenQuantity, TokenDivisor, TokenPriceUSD}]
+  // Free-tier fallback: replay the entire ERC-20 transfer history via the
+  // free `tokentx` endpoint. Reuses the same reconstruction we already do
+  // for historical snapshots — passing a wide-open endBlock collapses to
+  // "current state". Slower (paginates the whole history) but free.
+  return fetchHistoricalTokenBalances(apiKey, chainId, address, 99999999);
 }
 
 // Reconstruct token balances at a target block by replaying ERC-20 transfers.
 // Works on the FREE Etherscan tier — uses the `tokentx` endpoint with paging.
 async function fetchHistoricalTokenBalances(apiKey, chainId, address, endBlock){
   const tokens = new Map(); // contractAddr(lower) -> { meta…, _qty: BigInt }
-  const PAGE_SIZE = 10000;
-  const MAX_PAGES = 5; // hard safety cap → up to ~50k transfers per address/chain
+  // PAGE_SIZE pinned at 1,000 to be future-compatible with the upcoming
+  // Etherscan API per-page cap. MAX_PAGES bumped to 50 so the effective
+  // ceiling stays at ~50k transfers per address/chain.
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 50;
   let startBlock = 0;
   const addrLow = address.toLowerCase();
 
   for(let page=0; page<MAX_PAGES; page++){
     const url = `${API_BASE}?chainid=${chainId}&module=account&action=tokentx&address=${address}&startblock=${startBlock}&endblock=${endBlock}&page=1&offset=${PAGE_SIZE}&sort=asc&apikey=${apiKey}`;
-    const r = await fetch(url); const j = await r.json();
+    const j = await etherscanFetch(url);
     let list;
     if(j.status==='1') list = j.result || [];
     else if(j.message==='No transactions found' || j.result==='') list = [];
-    else throw new Error(j.message || j.result || 'tokentx error');
+    else throw new Error(j.result || j.message || 'tokentx error');
 
     if(!list.length) break;
 
@@ -1964,44 +2364,106 @@ function buildCSV(rows,extraCols){
   const lines=rows.map(row=>allKeys.map(k=>{ const ex=extraCols.find(e=>e.key===k); return escapeCSV(ex?ex.val:row[k]); }).join(','));
   return[allKeys.join(','),...lines].join('\n');
 }
-function triggerDownload(content,filename){
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([content],{type:'text/csv'}));
-  a.download=filename; a.click();
+// Robust download trigger. Several browser quirks live in this function:
+//
+//   1. The <a> element MUST be in the DOM before .click() in some browsers
+//      (Firefox, some Safari versions, and Chrome under file:// origin).
+//      A detached element silently does nothing in those configs.
+//   2. URL.createObjectURL() must be revoked, but only AFTER the click has
+//      been processed — calling revoke synchronously cancels the download.
+//      setTimeout(0) lets the click event finish first.
+//   3. When called multiple times back-to-back (per-address / separate
+//      modes producing N files), browsers — especially Chrome on file://
+//      origin — silently drop all but the first. We solve this by making
+//      the function async with a small delay; callers `await` so each
+//      download lands before the next one fires.
+async function triggerDownload(content, filename){
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  // Delay cleanup AND impose pacing for sequential downloads. 150ms is short
+  // enough to feel instant, long enough to satisfy Chrome's same-gesture
+  // throttle on file:// origin.
+  await new Promise(r => setTimeout(r, 150));
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── Download results ──────────────────────────────────────────────────────────
-function downloadResults(){
+async function downloadResults(){
   const withData=results.filter(r=>r.rows.length>0);
   if(!withData.length) return;
   if(downloadMode==='separate'){
-    withData.forEach(r=>{
-      triggerDownload(buildCSV(r.rows,[{key:'_label',val:r.label},{key:'_chain',val:r.chainName}]),`${r.label}_${r.chainId}.csv`);
-    });
+    // Finest granularity: one file per (address × chain × action). Filename
+    // includes the action label so files don't collide and the user can tell
+    // at a glance what's in each. Awaited in a for-loop (not forEach) so each
+    // download actually lands before the next is queued — browsers throttle
+    // back-to-back downloads from a single user gesture, especially on file://.
+    for(const r of withData){
+      await triggerDownload(buildCSV(r.rows,[{key:'_label',val:r.label},{key:'_chain',val:r.chainName}]),`${r.label}_${r.chainId}_${r.actionLabel}.csv`);
+    }
   } else if(downloadMode==='per-address'){
+    // One file per address, combining ALL chains and ALL action types. This
+    // is the format most useful for accounting — a complete per-wallet
+    // timeline across the whole multichain history. Different action types
+    // have different columns, so the column header is the union of all keys
+    // seen across any row in the address group.
     const groups=new Map();
     withData.forEach(r=>{ const key=r.label+'||'+r.address; if(!groups.has(key))groups.set(key,{label:r.label,chunks:[]}); groups.get(key).chunks.push(r); });
-    groups.forEach(g=>{
-      const allBaseKeys=[...new Set(g.chunks.flatMap(c=>Object.keys(c.rows[0]||{})))];
+    for(const g of groups.values()){
+      // Union keys across ALL rows (not just first row) — different action
+      // types contribute different columns (txlist has `input`, tokentx has
+      // `tokenSymbol`, etc.), so the .rows[0]-only union we used before
+      // would have dropped columns from minority action types in the file.
+      const allBaseKeys=[...new Set(g.chunks.flatMap(c=>c.rows.flatMap(row=>Object.keys(row))))];
       const lines=[[...allBaseKeys,'_chain'].join(',')];
       g.chunks.forEach(c=>c.rows.forEach(row=>lines.push([...allBaseKeys.map(k=>escapeCSV(row[k])),escapeCSV(c.chainName)].join(','))));
-      triggerDownload(lines.join('\n'),`${g.label}_all_chains.csv`);
-    });
+      await triggerDownload(lines.join('\n'),`${g.label}_all_chains.csv`);
+    }
   } else {
-    const allBaseKeys=[...new Set(withData.flatMap(r=>Object.keys(r.rows[0]||{})))];
+    // Single combined file. Same column-union approach as per-address mode,
+    // for the same reason — multiple action types means heterogeneous shapes.
+    const allBaseKeys=[...new Set(withData.flatMap(r=>r.rows.flatMap(row=>Object.keys(row))))];
     const lines=[[...allBaseKeys,'_label','_chain'].join(',')];
     withData.forEach(r=>r.rows.forEach(row=>lines.push([...allBaseKeys.map(k=>escapeCSV(row[k])),escapeCSV(r.label),escapeCSV(r.chainName)].join(','))));
-    triggerDownload(lines.join('\n'),'multichain_export.csv');
+    await triggerDownload(lines.join('\n'),'multichain_export.csv');
   }
 }
 
 // ── Run export ────────────────────────────────────────────────────────────────
+// Maps the API's technical action names to short, stable, user-friendly tokens
+// that get written into the `_action_type` column of every exported row. Using
+// these instead of "txlist"/"tokentx"/etc. makes the column readable in
+// spreadsheets and accounting tools without losing information.
+const ACTION_TYPES = [
+  { id: 'txlist',         label: 'normal',   uiName: 'Normal transactions'   },
+  { id: 'txlistinternal', label: 'internal', uiName: 'Internal transactions' },
+  { id: 'tokentx',        label: 'erc20',    uiName: 'ERC-20 transfers'      },
+  { id: 'tokennfttx',     label: 'erc721',   uiName: 'ERC-721 NFTs'          },
+  { id: 'token1155tx',    label: 'erc1155',  uiName: 'ERC-1155 transfers'    },
+];
+
 async function runExport(){
   const d=getData();
   if(!d.apiKey){ alert('Please save your Etherscan API key first (API key tab).'); return; }
-  const action=document.getElementById('exp-type').value;
-  const limit=parseInt(document.getElementById('exp-limit').value);
+  // Read selected action types in declaration order so the loop processes them
+  // predictably (normal → internal → ERC-20 → NFTs).
+  const actions = ACTION_TYPES.filter(a => document.getElementById('exp-type-'+a.id)?.checked);
+  if(!actions.length){
+    document.getElementById('export-log').innerHTML = '<div class="status err">Select at least one data type.</div>';
+    return;
+  }
+  const rawLimit=parseInt(document.getElementById('exp-limit').value);
+  // 0 is the sentinel for "All" — the paginating fetcher already terminates
+  // naturally when a partial page comes back, so we just plumb Infinity through.
+  // Still ultimately bounded by SAFETY_PAGES × PAGE_SIZE = 200,000 inside fetchAllTxs.
+  const limit = (Number.isFinite(rawLimit) && rawLimit > 0) ? rawLimit : Infinity;
+  const filterSpamEnabled = document.getElementById('exp-filter-spam').checked;
   const {startTs,endTs}=getBlockRange();
   const log=document.getElementById('export-log');
   log.innerHTML=''; results=[];
@@ -2029,38 +2491,88 @@ async function runExport(){
       continue;
     }
     for(const chain of chains){
-      const rid=`${addr.address.slice(2,8)}-${chain.id}`;
-      log.innerHTML+=`
-        <div class="log-item" id="row-${rid}">
-          <span class="chain-tag" style="background:${chain.color}20;color:${chain.color}">${chain.short}</span>
-          <span style="font-size:12px;color:var(--text2);flex:1">${chain.name}</span>
-          <span style="font-size:11px;color:var(--text3);margin-right:4px">chain ${chain.chainId}</span>
-          <span class="status" id="st-${rid}">resolving blocks…</span>
-        </div>
-        <div class="progress" style="margin-left:8px"><div class="progress-bar" id="pb-${rid}" style="width:15%"></div></div>`;
-      const st=document.getElementById('st-'+rid);
-      const pb=document.getElementById('pb-'+rid);
+      // Resolve the block range once per chain — applies to all action types.
+      let startBlock=null,endBlock=null;
+      let blockResolveError=null;
       try{
-        let startBlock=null,endBlock=null;
         if(startTs) startBlock=await getBlockNumber(d.apiKey,chain.chainId,startTs);
         if(endTs)   endBlock=await getBlockNumber(d.apiKey,chain.chainId,endTs);
-        pb.style.width='40%'; st.textContent='fetching…';
-        const rows=await fetchTxs(d.apiKey,chain.chainId,addr.address,action,limit,startBlock,endBlock);
-        pb.style.width='100%';
-        // Pipeline:
-        //   1. UTC date columns (all action types have timeStamp)
-        //   2. Counterparty / own-wallet labels next to from/to/contractAddress
-        //   3. Contract-classification columns for normal txs only
-        let enriched = enrichRowsWithDates(rows);
-        enriched = enrichRowsWithLabels(enriched, labelMap);
-        if(action==='txlist') enriched = enrichRows(enriched);
-        results.push({label:addr.label,address:addr.address,chainId:chain.id,chainName:chain.name,rows:enriched});
-        if(rows.length){ st.textContent=`${rows.length.toLocaleString()} rows`; st.className='status ok'; }
-        else { st.textContent='no data'; st.className='status'; }
-      }catch(e){
-        pb.style.width='100%'; pb.style.background='var(--danger-text)';
-        st.textContent=e.message; st.className='status err';
-        results.push({label:addr.label,address:addr.address,chainId:chain.id,chainName:chain.name,rows:[]});
+      }catch(e){ blockResolveError = e.message; }
+
+      // One log row per (chain × action). For chains the user has many actions
+      // selected on, this can be verbose, but it's the clearest way to surface
+      // per-action progress and per-action errors (one action might rate-limit
+      // while another succeeds).
+      for(const act of actions){
+        const rid=`${addr.address.slice(2,8)}-${chain.id}-${act.id}`;
+        log.innerHTML+=`
+          <div class="log-item" id="row-${rid}">
+            <span class="chain-tag" style="background:${chain.color}20;color:${chain.color}">${chain.short}</span>
+            <span style="font-size:12px;color:var(--text2);flex:1">${chain.name} <span style="color:var(--text3)">· ${act.uiName}</span></span>
+            <span style="font-size:11px;color:var(--text3);margin-right:4px">chain ${chain.chainId}</span>
+            <span class="status" id="st-${rid}">${blockResolveError ? 'block resolve failed' : 'fetching…'}</span>
+          </div>
+          <div class="progress" style="margin-left:8px"><div class="progress-bar" id="pb-${rid}" style="width:15%"></div></div>`;
+        const st=document.getElementById('st-'+rid);
+        const pb=document.getElementById('pb-'+rid);
+        if(blockResolveError){
+          pb.style.width='100%'; pb.style.background='var(--danger-text)';
+          st.textContent=blockResolveError; st.className='status err';
+          results.push({label:addr.label,address:addr.address,chainId:chain.id,chainName:chain.name,action:act.id,actionLabel:act.label,rows:[]});
+          continue;
+        }
+        try{
+          pb.style.width='40%';
+          const rows=await fetchAllTxs(d.apiKey,chain.chainId,addr.address,act.id,limit,startBlock,endBlock,(got,total)=>{
+            if(!Number.isFinite(total)){
+              st.textContent = `fetching ${got.toLocaleString()}…`;
+              pb.style.width = `${40 + Math.min(55, (got/50000)*55)}%`;
+            } else {
+              st.textContent = `fetching ${got.toLocaleString()} / ${total.toLocaleString()}…`;
+              pb.style.width = `${40 + Math.min(55, (got/total)*55)}%`;
+            }
+          });
+          pb.style.width='100%';
+          // Spam filter runs FIRST — before enrichment — so we don't waste cycles
+          // formatting decimals, looking up labels, or classifying selectors on
+          // rows we're about to drop.
+          let workingRows = rows;
+          let spamDropped = 0;
+          if(filterSpamEnabled){
+            const f = filterSpam(rows, act.id);
+            workingRows = f.rows;
+            spamDropped = f.dropped;
+          }
+          // Pipeline:
+          //   1. UTC date columns (all action types have timeStamp)
+          //   2. Human-readable decimal values next to wei/raw value+gasPrice
+          //   3. Counterparty / own-wallet labels next to from/to/contractAddress
+          //   4. Method-id classification — runs on every action type. Rows
+          //      without an `input` field get blank classification columns.
+          //   5. Drop bloat columns (gas internals, transactionIndex, …)
+          //   6. Tag with action type so combined CSVs are sortable/filterable
+          let enriched = enrichRowsWithDates(workingRows);
+          enriched = enrichRowsWithFormattedValues(enriched, act.id);
+          enriched = enrichRowsWithLabels(enriched, labelMap);
+          enriched = enrichRows(enriched);
+          enriched = stripColumns(enriched, EXCLUDED_COLUMNS);
+          enriched = enriched.map(r => ({...r, _action_type: act.label}));
+          results.push({label:addr.label,address:addr.address,chainId:chain.id,chainName:chain.name,action:act.id,actionLabel:act.label,rows:enriched});
+          if(enriched.length){
+            const spamSuffix = spamDropped > 0 ? ` (${spamDropped.toLocaleString()} spam filtered)` : '';
+            st.textContent = `${enriched.length.toLocaleString()} rows${spamSuffix}`;
+            st.className='status ok';
+          } else if(spamDropped > 0){
+            st.textContent = `no data (${spamDropped.toLocaleString()} spam filtered)`;
+            st.className='status';
+          } else {
+            st.textContent='no data'; st.className='status';
+          }
+        }catch(e){
+          pb.style.width='100%'; pb.style.background='var(--danger-text)';
+          st.textContent=e.message; st.className='status err';
+          results.push({label:addr.label,address:addr.address,chainId:chain.id,chainName:chain.name,action:act.id,actionLabel:act.label,rows:[]});
+        }
       }
     }
   }
